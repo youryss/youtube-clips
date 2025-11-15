@@ -1,0 +1,44 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Project specific
+output/
+temp/
+*.mp4
+*.mp3
+*.m4a
+*.webm
+*.opus
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# YouTube API credentials (KEEP THESE SECRET!)
+client_secrets.json
+youtube_token.json
+*.json.bak
+

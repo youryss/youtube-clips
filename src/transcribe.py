@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""
+Transcription Module
+Handles audio download and transcription with timestamps using Whisper
+"""
+
+import re
+import json
+from pathlib import Path
+from typing import List, Dict, Optional
+import yt_dlp
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Remove invalid characters from filename
+    Replace /\:*?"<>| with underscores
+    """
+    # Remove invalid characters
+    sanitized = re.sub(r'[/\\:*?"<>|]', '_', filename)
+    # Remove leading/trailing spaces and dots
+    sanitized = sanitized.strip('. ')
+    # Limit length to avoid filesystem issues
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    return sanitized
+
+
+def format_timestamp(seconds: float) -> str:
+    """
+    Convert seconds to HH:MM:SS or MM:SS format
+    """
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    else:
+        return f"{minutes:02d}:{secs:02d}"
+
+
+def download_audio(url: str, output_path: str, audio_format: str = "mp3") -> Optional[str]:
+    """
+    Download audio from YouTube video (with caching support)
+    
+    Args:
+        url: YouTube video URL
+        output_path: Path where audio should be saved (without extension)
+        audio_format: Audio format (mp3, m4a, etc.)
+    
+    Returns:
+        Path to downloaded audio file, or None if failed
+    """
+    # Check if audio already exists (check common extensions)
+    for ext in ['.mp3', '.m4a', '.webm', '.opus']:
+        potential_file = Path(f"{output_path}{ext}")
+        if potential_file.exists():
+            print(f"Audio already exists: {potential_file.name}")
+            return str(potential_file)
+    
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': audio_format,
+            'preferredquality': '192',
+        }],
+        'outtmpl': output_path,
+        'quiet': True,
+        'no_warnings': True,
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # Find the downloaded audio file
+        for ext in ['.mp3', '.m4a', '.webm', '.opus']:
+            potential_file = Path(f"{output_path}{ext}")
+            if potential_file.exists():
+                return str(potential_file)
+        
+        return None
+    except Exception as e:
+        print(f"Error downloading audio: {e}")
+        return None
+
+
+def save_transcript_cache(transcript_segments: List[Dict], cache_path: str) -> bool:
+    """
+    Save transcript segments to a JSON cache file
+    
+    Args:
+        transcript_segments: List of transcript segments
+        cache_path: Path where to save the cache file
+    
+    Returns:
+        True if saved successfully, False otherwise
+    """
+    try:
+        cache_path = Path(cache_path)
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(transcript_segments, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Warning: Could not save transcript cache: {e}")
+        return False
+
+
+def load_transcript_cache(cache_path: str) -> Optional[List[Dict]]:
+    """
+    Load transcript segments from a JSON cache file
+    
+    Args:
+        cache_path: Path to the cache file
+    
+    Returns:
+        List of transcript segments or None if not found/invalid
+    """
+    try:
+        cache_path = Path(cache_path)
+        if not cache_path.exists():
+            return None
+        
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Validate structure
+        if isinstance(data, list) and len(data) > 0:
+            if all(isinstance(item, dict) and 'start' in item and 'text' in item for item in data):
+                print(f"Loaded transcript from cache: {cache_path.name}")
+                return data
+        
+        return None
+    except Exception as e:
+        print(f"Warning: Could not load transcript cache: {e}")
+        return None
+
+
+def get_audio_duration(audio_path: str) -> Optional[float]:
+    """
+    Get duration of audio file in seconds
+    
+    Args:
+        audio_path: Path to audio file
+    
+    Returns:
+        Duration in seconds, or None if failed
+    """
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
+            capture_output=True,
+            text=True
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
+
+
+def transcribe_with_timestamps(
+    audio_path: str,
+    model_name: str = "small",
+    device: str = "auto",
+    compute_type: str = "int8",
+    cache_path: Optional[str] = None,
+    show_progress: bool = True
+) -> List[Dict[str, any]]:
+    """
+    Transcribe audio using faster-whisper and return segments with timestamps
+    Supports caching to avoid re-transcribing the same audio
+    
+    Args:
+        audio_path: Path to audio file
+        model_name: Whisper model size (tiny, base, small, medium, large)
+        device: Device to use (cpu, cuda, auto)
+        compute_type: Compute type (int8, float16, float32)
+        cache_path: Optional path to save/load transcript cache (JSON file)
+        show_progress: Whether to show transcription progress (default: True)
+    
+    Returns:
+        List of segments with structure:
+        [
+            {
+                'start': float (seconds),
+                'end': float (seconds),
+                'text': str,
+                'start_formatted': str (HH:MM:SS),
+                'end_formatted': str (HH:MM:SS)
+            },
+            ...
+        ]
+    """
+    # Try to load from cache first
+    if cache_path:
+        cached_transcript = load_transcript_cache(cache_path)
+        if cached_transcript:
+            return cached_transcript
+    
+    # No cache found, proceed with transcription
+    from faster_whisper import WhisperModel
+    import sys
+    
+    # Get audio duration for progress tracking
+    audio_duration = get_audio_duration(audio_path) if show_progress else None
+    
+    if show_progress:
+        print("Transcribing audio...", flush=True)
+        if audio_duration:
+            print(f"Audio duration: {format_timestamp(audio_duration)}", flush=True)
+    
+    model = WhisperModel(model_name, device=device, compute_type=compute_type)
+    segments_data, info = model.transcribe(audio_path, beam_size=5)
+    
+    result = []
+    last_print_time = 0
+    
+    for segment in segments_data:
+        result.append({
+            'start': segment.start,
+            'end': segment.end,
+            'text': segment.text.strip(),
+            'start_formatted': format_timestamp(segment.start),
+            'end_formatted': format_timestamp(segment.end)
+        })
+        
+        # Show progress update every ~5 seconds of transcribed audio
+        if show_progress and segment.end - last_print_time >= 5:
+            if audio_duration and audio_duration > 0:
+                progress_pct = min(100, int((segment.end / audio_duration) * 100))
+                print(f"  Progress: {progress_pct}% - {format_timestamp(segment.end)} / {format_timestamp(audio_duration)} - {len(result)} segments", flush=True)
+            else:
+                print(f"  Progress: {format_timestamp(segment.end)} - {len(result)} segments", flush=True)
+            last_print_time = segment.end
+    
+    if show_progress:
+        print(f"  ✓ Transcription complete: {len(result)} segments", flush=True)
+    
+    # Save to cache if path provided
+    if cache_path and result:
+        save_transcript_cache(result, cache_path)
+    
+    return result
+
+
+def get_full_transcript(segments: List[Dict[str, any]], include_timestamps: bool = True) -> str:
+    """
+    Convert segments list to formatted transcript string
+    
+    Args:
+        segments: List of segment dictionaries from transcribe_with_timestamps
+        include_timestamps: Whether to include timestamps in output
+    
+    Returns:
+        Formatted transcript string
+    """
+    if include_timestamps:
+        lines = [f"[{seg['start_formatted']}] {seg['text']}" for seg in segments]
+        return "\n".join(lines)
+    else:
+        return " ".join(seg['text'] for seg in segments)
+
+
+def get_video_metadata(url: str) -> Optional[Dict[str, any]]:
+    """
+    Extract video metadata without downloading
+    
+    Args:
+        url: YouTube video URL
+    
+    Returns:
+        Dictionary with video metadata (title, duration, etc.) or None if failed
+    """
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True,
+    }
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return {
+                'title': info.get('title', 'Unknown'),
+                'duration': info.get('duration', 0),
+                'url': url,
+                'id': info.get('id', ''),
+                'description': info.get('description', ''),
+            }
+    except Exception as e:
+        print(f"Error extracting metadata from {url}: {e}")
+        return None
+

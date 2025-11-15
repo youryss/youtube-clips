@@ -1,0 +1,9 @@
+# YouTube Viral Clipper - Input Videos
+# Add YouTube URLs below (one per line)
+# Lines starting with # are comments and will be ignored
+
+# Example:
+# https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+https://www.youtube.com/watch?v=jis5Q9UEroE
+# https://www.youtube.com/watch?v=Lnk5qklcjos&t=3628s
