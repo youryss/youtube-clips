@@ -14,7 +14,8 @@ def download_video(
     url: str,
     output_dir: str,
     quality: str = "1080p",
-    filename: Optional[str] = None
+    filename: Optional[str] = None,
+    progress_callback: Optional[callable] = None
 ) -> Optional[Dict[str, any]]:
     """
     Download full video from YouTube
@@ -55,12 +56,23 @@ def download_video(
     else:
         output_template = str(output_dir / '%(title)s.%(ext)s')
     
+    def progress_hook(d):
+        """Progress hook for download"""
+        if progress_callback and d['status'] == 'downloading':
+            if 'downloaded_bytes' in d and 'total_bytes' in d:
+                percent = (d['downloaded_bytes'] / d['total_bytes']) * 100
+                progress_callback(percent)
+            elif 'downloaded_bytes' in d and 'total_bytes_estimate' in d:
+                percent = (d['downloaded_bytes'] / d['total_bytes_estimate']) * 100
+                progress_callback(percent)
+    
     ydl_opts = {
         'format': format_str,
         'outtmpl': output_template,
         'merge_output_format': 'mp4',
         'quiet': False,
         'no_warnings': False,
+        'progress_hooks': [progress_hook] if progress_callback else [],
         'postprocessors': [{
             'key': 'FFmpegVideoConvertor',
             'preferedformat': 'mp4',

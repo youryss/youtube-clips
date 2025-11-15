@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+Jobs API endpoints
+"""
+
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import db, Job
+from services.job_manager import get_job_manager
+import subprocess
+
+jobs_bp = Blueprint('jobs', __name__)
+
+
+@jobs_bp.route('', methods=['GET'])
+@jwt_required()
+def list_jobs():
+    """List all jobs for current user"""
+    user_id = int(get_jwt_identity())
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    query = Job.query.filter_by(user_id=user_id).order_by(Job.created_at.desc())
+    
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        'jobs': [job.to_dict() for job in pagination.items],
+        'total': pagination.total,
+        'page': page,
+        'per_page': per_page,
+        'pages': pagination.pages
+    }), 200
+
+
+@jobs_bp.route('', methods=['POST'])
+@jwt_required()
+def create_job():
+    """Create a new job"""
+    user_id = int(get_jwt_identity())
+    data = request.get_json()
+    
+    if not data or not data.get('video_url'):
+        return jsonify({'error': 'video_url is required'}), 400
+    
+    video_url = data['video_url'].strip()
+    
+    job = Job(user_id=user_id, video_url=video_url, status='pending')
+    db.session.add(job)
+    db.session.commit()
+    
+    print(f"[API] Job {job.id} created, queuing for processing...", flush=True)
+    
+    try:
+        job_manager = get_job_manager()
+        print(f"[API] Job manager instance: {job_manager}", flush=True)
+        if job_manager:
+            job_manager.add_job(job.id, user_id)
+            print(f"[API] Job {job.id} queued successfully", flush=True)
+        else:
+            print(f"[API] ERROR: Job manager is None!", flush=True)
+    except Exception as e:
+        print(f"[API] ERROR queueing job {job.id}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+    
+    return jsonify({
+        'message': 'Job created successfully',
+        'job': job.to_dict()
+    }), 201
+
+
+@jobs_bp.route('/<int:job_id>', methods=['GET'])
+@jwt_required()
+def get_job(job_id):
+    """Get job details"""
+    user_id = int(get_jwt_identity())
+    
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    return jsonify({'job': job.to_dict()}), 200
+
+
+@jobs_bp.route('/<int:job_id>', methods=['DELETE'])
+@jwt_required()
+def delete_job(job_id):
+    """Delete a job"""
+    user_id = int(get_jwt_identity())
+    
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    db.session.delete(job)
+    db.session.commit()
+    
+    return jsonify({'message': 'Job deleted successfully'}), 200
+
+
+@jobs_bp.route('/<int:job_id>/cancel', methods=['POST'])
+@jwt_required()
+def cancel_job(job_id):
+    """Cancel a running job"""
+    user_id = int(get_jwt_identity())
+    
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    if job.status not in ['pending', 'downloading', 'transcribing', 'analyzing', 'slicing']:
+        return jsonify({'error': 'Job cannot be cancelled'}), 400
+    
+    job.status = 'cancelled'
+    job.error_message = 'Job cancelled by user'
+    db.session.commit()
+    
+    return jsonify({'message': 'Job cancelled successfully'}), 200
+
+
+@jobs_bp.route('/<int:job_id>/logs', methods=['GET'])
+@jwt_required()
+def get_job_logs(job_id):
+    """Get logs for a specific job"""
+    user_id = int(get_jwt_identity())
+    
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    # Return job details which include error messages and status
+    return jsonify({
+        'job_id': job.id,
+        'status': job.status,
+        'error_message': job.error_message,
+        'current_step': job.current_step,
+        'progress': job.progress,
+        'created_at': job.created_at.isoformat() if job.created_at else None,
+        'started_at': job.started_at.isoformat() if job.started_at else None,
+        'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+        'message': 'Check Docker logs with: docker-compose logs backend | grep "Job ' + str(job_id) + '"'
+    }), 200

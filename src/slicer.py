@@ -8,7 +8,12 @@ import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict
 import json
-import config
+
+# Import config from src package to avoid conflicts with backend config
+try:
+    from . import config  # When imported as a module
+except ImportError:
+    import config  # When run directly
 
 
 def format_time_for_ffmpeg(seconds: float) -> str:

@@ -7,7 +7,12 @@ Uses OpenAI to analyze transcripts and identify viral-worthy segments
 import json
 from typing import List, Dict, Optional
 from openai import OpenAI
-import config
+
+# Import config from src package to avoid conflicts with backend config
+try:
+    from . import config  # When imported as a module
+except ImportError:
+    import config  # When run directly
 
 
 def load_criteria() -> Dict[str, str]:
@@ -161,7 +166,8 @@ def analyze_transcript(
     Returns:
         List of viral segments with metadata
     """
-    if not config.validate_config():
+    # Validate config if function exists (skip when called from backend)
+    if hasattr(config, 'validate_config') and not config.validate_config():
         raise ValueError("Invalid configuration. Please check your .env file.")
     
     # Load criteria

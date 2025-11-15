@@ -167,7 +167,8 @@ def transcribe_with_timestamps(
     device: str = "auto",
     compute_type: str = "int8",
     cache_path: Optional[str] = None,
-    show_progress: bool = True
+    show_progress: bool = True,
+    progress_callback: Optional[callable] = None
 ) -> List[Dict[str, any]]:
     """
     Transcribe audio using faster-whisper and return segments with timestamps
@@ -198,11 +199,15 @@ def transcribe_with_timestamps(
     if cache_path:
         cached_transcript = load_transcript_cache(cache_path)
         if cached_transcript:
+            # If loading from cache, notify callback that it's complete
+            if progress_callback:
+                progress_callback(100)
             return cached_transcript
     
     # No cache found, proceed with transcription
     from faster_whisper import WhisperModel
     import sys
+    import time
     
     # Get audio duration for progress tracking
     audio_duration = get_audio_duration(audio_path) if show_progress else None
@@ -212,29 +217,128 @@ def transcribe_with_timestamps(
         if audio_duration:
             print(f"Audio duration: {format_timestamp(audio_duration)}", flush=True)
     
-    model = WhisperModel(model_name, device=device, compute_type=compute_type)
-    segments_data, info = model.transcribe(audio_path, beam_size=5)
+    print(f"[Transcribe] Loading Whisper model: {model_name} (device={device}, compute_type={compute_type})", flush=True)
+    start_time = time.time()
+    
+    # Update progress callback to show model loading
+    if progress_callback:
+        try:
+            progress_callback(0)  # Show we're starting
+        except:
+            pass
+    
+    try:
+        print(f"[Transcribe] Creating WhisperModel instance...", flush=True)
+        model = WhisperModel(model_name, device=device, compute_type=compute_type)
+        load_time = time.time() - start_time
+        print(f"[Transcribe] Model loaded successfully in {load_time:.2f} seconds", flush=True)
+        
+        # Log model info
+        if hasattr(model, 'model'):
+            print(f"[Transcribe] Model type: {type(model.model)}", flush=True)
+    except ImportError as e:
+        error_msg = f"Failed to import faster_whisper: {e}"
+        print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+        raise Exception(error_msg)
+    except Exception as e:
+        error_msg = f"Failed to load Whisper model: {e}"
+        print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise Exception(error_msg)
+    
+    print(f"[Transcribe] Starting transcription of: {audio_path}", flush=True)
+    transcribe_start = time.time()
+    
+    try:
+        segments_data, info = model.transcribe(audio_path, beam_size=5)
+        print(f"[Transcribe] model.transcribe() returned, info={info}", flush=True)
+    except Exception as e:
+        print(f"[Transcribe] ERROR in model.transcribe(): {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    # Initial progress update (0%)
+    if progress_callback and audio_duration and audio_duration > 0:
+        progress_callback(0)
+        print(f"[Transcribe] Initial progress callback: 0%", flush=True)
     
     result = []
     last_print_time = 0
+    last_callback_time = 0
+    segment_count = 0
     
-    for segment in segments_data:
-        result.append({
-            'start': segment.start,
-            'end': segment.end,
-            'text': segment.text.strip(),
-            'start_formatted': format_timestamp(segment.start),
-            'end_formatted': format_timestamp(segment.end)
-        })
-        
-        # Show progress update every ~5 seconds of transcribed audio
-        if show_progress and segment.end - last_print_time >= 5:
+    print(f"[Transcribe] Starting transcription loop, audio_duration={audio_duration}", flush=True)
+    loop_start_time = time.time()
+    last_segment_time = time.time()
+    
+    try:
+        for segment in segments_data:
+            # Check if we're stuck (no segments for 30 seconds)
+            current_time = time.time()
+            if current_time - last_segment_time > 30:
+                print(f"[Transcribe] WARNING: No segments for 30 seconds! Last segment was {current_time - last_segment_time:.1f}s ago", flush=True)
+            last_segment_time = current_time
+            segment_count += 1
+            
+            result.append({
+                'start': segment.start,
+                'end': segment.end,
+                'text': segment.text.strip(),
+                'start_formatted': format_timestamp(segment.start),
+                'end_formatted': format_timestamp(segment.end)
+            })
+            
+            # Calculate progress percentage
             if audio_duration and audio_duration > 0:
                 progress_pct = min(100, int((segment.end / audio_duration) * 100))
-                print(f"  Progress: {progress_pct}% - {format_timestamp(segment.end)} / {format_timestamp(audio_duration)} - {len(result)} segments", flush=True)
             else:
-                print(f"  Progress: {format_timestamp(segment.end)} - {len(result)} segments", flush=True)
-            last_print_time = segment.end
+                progress_pct = 0
+            
+            # Update progress callback more frequently, especially at the start
+            should_update_callback = False
+            if audio_duration and audio_duration > 0:
+                # Update every 0.3 seconds of audio OR every 2 segments (more frequent)
+                # OR always update for first 10 segments to show progress immediately
+                if segment_count <= 10 or segment.end - last_callback_time >= 0.3 or len(result) % 2 == 0:
+                    should_update_callback = True
+            else:
+                # Update every 2 segments if we don't have duration
+                if len(result) % 2 == 0:
+                    should_update_callback = True
+            
+            # Call progress callback if provided (very frequently for real-time updates)
+            if should_update_callback and progress_callback:
+                if audio_duration and audio_duration > 0:
+                    progress_callback(progress_pct)
+                    if segment_count <= 5 or segment_count % 10 == 0:
+                        print(f"[Transcribe] Progress callback: {progress_pct}% (segment {segment_count}, time: {format_timestamp(segment.end)})", flush=True)
+                    last_callback_time = segment.end
+                else:
+                    # Even without duration, update based on segment count
+                    estimated_pct = min(95, int((len(result) / 100) * 100))  # Estimate based on segments
+                    progress_callback(estimated_pct)
+                    if segment_count % 10 == 0:
+                        print(f"[Transcribe] Progress callback (no duration): {estimated_pct}% (segment {segment_count})", flush=True)
+            
+            # Print progress less frequently (every 2 seconds) to avoid too much output
+            if segment.end - last_print_time >= 2:
+                if show_progress:
+                    if audio_duration and audio_duration > 0:
+                        print(f"  Progress: {progress_pct}% - {format_timestamp(segment.end)} / {format_timestamp(audio_duration)} - {len(result)} segments", flush=True)
+                    else:
+                        print(f"  Progress: {format_timestamp(segment.end)} - {len(result)} segments", flush=True)
+                last_print_time = segment.end
+    except Exception as e:
+        print(f"[Transcribe] ERROR in transcription loop: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    # Final progress update (100%)
+    if progress_callback and audio_duration and audio_duration > 0:
+        progress_callback(100)
     
     if show_progress:
         print(f"  ✓ Transcription complete: {len(result)} segments", flush=True)
