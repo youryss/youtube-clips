@@ -22,6 +22,23 @@ def _make_readonly_cookiejar(cookiejar):
     return cookiejar
 
 
+def _disable_cookie_saving(ydl):
+    """Disable cookie saving on yt-dlp instance to prevent read-only errors"""
+    # Patch the cookiejar save method
+    if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
+        _make_readonly_cookiejar(ydl.cookiejar)
+    
+    # Also patch save_cookies() method on the YoutubeDL instance itself
+    if hasattr(ydl, 'save_cookies'):
+        original_save_cookies = ydl.save_cookies
+        def noop_save_cookies():
+            """Override save_cookies to do nothing - file is read-only"""
+            pass  # Don't save cookies, file is read-only
+        ydl.save_cookies = noop_save_cookies
+    
+    return ydl
+
+
 def _get_ytdlp_base_opts() -> Dict:
     """
     Get base yt-dlp options with cookie support if configured
@@ -183,9 +200,8 @@ def download_video(
     try:
         # Create yt-dlp instance
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Make cookie jar read-only to prevent save attempts
-        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            _make_readonly_cookiejar(ydl.cookiejar)
+        # Disable cookie saving to prevent read-only file system errors
+        _disable_cookie_saving(ydl)
         try:
             # Extract info first
             info = ydl.extract_info(url, download=False)
@@ -271,9 +287,8 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
         })
         
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Make cookie jar read-only
-        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            _make_readonly_cookiejar(ydl.cookiejar)
+        # Disable cookie saving to prevent read-only file system errors
+        _disable_cookie_saving(ydl)
         try:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', '')
@@ -326,10 +341,8 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     
     try:
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Make cookie jar read-only BEFORE extracting info
-        # This prevents yt-dlp from trying to save cookies later
-        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            _make_readonly_cookiejar(ydl.cookiejar)
+        # Disable cookie saving to prevent read-only file system errors
+        _disable_cookie_saving(ydl)
         try:
             info = ydl.extract_info(url, download=False)
             return {
