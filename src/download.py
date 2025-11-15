@@ -12,29 +12,60 @@ from . import config as cli_config
 
 
 def _make_readonly_cookiejar(cookiejar):
-    """Make a cookie jar read-only by monkey-patching the save method"""
-    if cookiejar and hasattr(cookiejar, 'save'):
-        original_save = cookiejar.save
-        def noop_save(filename=None, ignore_discard=False, ignore_expires=False):
-            """Override save to do nothing - file is read-only"""
-            pass  # Don't save cookies, file is read-only
-        cookiejar.save = noop_save
+    """Make a cookie jar read-only by monkey-patching the save and open methods"""
+    if cookiejar:
+        # Patch the save method
+        if hasattr(cookiejar, 'save'):
+            def noop_save(filename=None, ignore_discard=False, ignore_expires=False):
+                """Override save to do nothing - file is read-only"""
+                pass  # Don't save cookies, file is read-only
+            cookiejar.save = noop_save
+        
+        # Also patch the open method to prevent write attempts
+        if hasattr(cookiejar, 'open'):
+            original_open = cookiejar.open
+            def readonly_open(file, write=False, *args, **kwargs):
+                """Override open to prevent write operations on read-only file"""
+                if write:
+                    # If trying to write, just return a no-op context manager
+                    from contextlib import nullcontext
+                    return nullcontext()
+                else:
+                    # For read operations, use the original method
+                    return original_open(file, write=False, *args, **kwargs)
+            cookiejar.open = readonly_open
+    
     return cookiejar
 
 
 def _disable_cookie_saving(ydl):
     """Disable cookie saving on yt-dlp instance to prevent read-only errors"""
-    # Patch the cookiejar save method
+    # Patch the cookiejar (save and open methods)
     if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
         _make_readonly_cookiejar(ydl.cookiejar)
     
     # Also patch save_cookies() method on the YoutubeDL instance itself
     if hasattr(ydl, 'save_cookies'):
-        original_save_cookies = ydl.save_cookies
         def noop_save_cookies():
             """Override save_cookies to do nothing - file is read-only"""
             pass  # Don't save cookies, file is read-only
         ydl.save_cookies = noop_save_cookies
+    
+    # Patch close() method to prevent cookie saving on exit
+    if hasattr(ydl, 'close'):
+        original_close = ydl.close
+        def safe_close():
+            """Override close to skip cookie saving"""
+            try:
+                # Call original close but catch cookie save errors
+                original_close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    # Expected error, ignore it
+                    pass
+                else:
+                    raise
+        ydl.close = safe_close
     
     return ydl
 
