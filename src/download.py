@@ -254,7 +254,8 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
             'extract_flat': True,
         })
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        try:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', '')
             
@@ -263,8 +264,17 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
             for video_file in output_dir.glob('*.mp4'):
                 if title in video_file.stem:
                     return str(video_file)
-        
-        return None
+            
+            return None
+        finally:
+            # Suppress read-only file system error when closing
+            try:
+                ydl.close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    pass  # Expected error, ignore
+                else:
+                    raise
     
     except Exception:
         return None
@@ -306,6 +316,15 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
                 'uploader': info.get('uploader', ''),
                 'view_count': info.get('view_count', 0),
             }
+        finally:
+            # Suppress read-only file system error when closing
+            try:
+                ydl.close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    pass  # Expected error, ignore
+                else:
+                    raise
     except Exception as e:
         print(f"Error getting video info: {e}")
         return None
