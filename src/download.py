@@ -23,6 +23,7 @@ def _get_ytdlp_base_opts() -> Dict:
     # Add cookie support if configured
     if cli_config.YT_DLP_COOKIES:
         cookies_value = cli_config.YT_DLP_COOKIES.strip()
+        print(f"[yt-dlp] Cookie config found: {cookies_value}")
         
         # Common browser names that yt-dlp supports
         browser_names = ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']
@@ -30,21 +31,45 @@ def _get_ytdlp_base_opts() -> Dict:
         # Check if it's a browser name (case-insensitive)
         if cookies_value.lower() in browser_names:
             opts['cookiesfrombrowser'] = (cookies_value.lower(),)
+            print(f"[yt-dlp] Using cookies from browser: {cookies_value.lower()}")
         else:
             # Treat as file path
             cookies_path = Path(cookies_value)
-            # If it's an absolute path or exists, use it as-is
-            if cookies_path.is_absolute() or cookies_path.exists():
-                opts['cookiefile'] = str(cookies_path)
+            cookie_file = None
+            
+            # If it's an absolute path, use it as-is
+            if cookies_path.is_absolute():
+                if cookies_path.exists():
+                    cookie_file = str(cookies_path)
+                    print(f"[yt-dlp] Using absolute cookie file: {cookie_file}")
+                else:
+                    print(f"[yt-dlp] WARNING: Cookie file not found at absolute path: {cookies_path}")
+            # Check if relative path exists
+            elif cookies_path.exists():
+                cookie_file = str(cookies_path)
+                print(f"[yt-dlp] Using relative cookie file: {cookie_file}")
             else:
                 # Try relative to project root
                 project_root = cli_config.PROJECT_ROOT
                 full_path = project_root / cookies_path
                 if full_path.exists():
-                    opts['cookiefile'] = str(full_path)
+                    cookie_file = str(full_path)
+                    print(f"[yt-dlp] Using cookie file from project root: {cookie_file}")
                 else:
                     # Last resort: use as-is (might be a path inside container)
-                    opts['cookiefile'] = cookies_value
+                    cookie_file = cookies_value
+                    print(f"[yt-dlp] Using cookie path as-is (container path): {cookie_file}")
+            
+            if cookie_file:
+                opts['cookiefile'] = cookie_file
+                # Verify file exists if it's a real path
+                if Path(cookie_file).exists():
+                    file_size = Path(cookie_file).stat().st_size
+                    print(f"[yt-dlp] Cookie file verified: {cookie_file} ({file_size} bytes)")
+                else:
+                    print(f"[yt-dlp] WARNING: Cookie file does not exist: {cookie_file}")
+    else:
+        print("[yt-dlp] No cookie configuration found (YT_DLP_COOKIES not set)")
     
     return opts
 

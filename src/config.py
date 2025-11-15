@@ -26,6 +26,12 @@ TEMP_DIR = os.getenv('TEMP_DIR', 'temp')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'output')
 YT_DLP_COOKIES = os.getenv('YT_DLP_COOKIES', '')  # Path to cookies file (Netscape format) or browser name
 
+# Debug: Print cookie config on load (only if set)
+if YT_DLP_COOKIES:
+    print(f"[config] YT_DLP_COOKIES loaded: {YT_DLP_COOKIES}")
+else:
+    print("[config] YT_DLP_COOKIES not set")
+
 # Viral Clip Settings
 MIN_CLIP_DURATION = int(os.getenv('MIN_CLIP_DURATION', '15'))  # seconds
 MAX_CLIP_DURATION = int(os.getenv('MAX_CLIP_DURATION', '60'))  # seconds

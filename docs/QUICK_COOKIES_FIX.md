@@ -35,5 +35,5 @@ That's it! The bot detection error should be resolved.
 
 ## Full Documentation
 
-See `YOUTUBE_COOKIES_SETUP.md` for detailed instructions and troubleshooting.
+See [YOUTUBE_COOKIES_SETUP.md](YOUTUBE_COOKIES_SETUP.md) for detailed instructions and troubleshooting.
 
