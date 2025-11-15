@@ -42,3 +42,6 @@ client_secrets.json
 youtube_token.json
 *.json.bak
 
+# YouTube cookies (KEEP THESE SECRET!)
+cookies.txt
+

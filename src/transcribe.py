@@ -9,6 +9,45 @@ import json
 from pathlib import Path
 from typing import List, Dict, Optional
 import yt_dlp
+from . import config as cli_config
+
+
+def _get_ytdlp_base_opts() -> Dict:
+    """
+    Get base yt-dlp options with cookie support if configured
+    
+    Returns:
+        Dictionary of yt-dlp options
+    """
+    opts = {}
+    
+    # Add cookie support if configured
+    if cli_config.YT_DLP_COOKIES:
+        cookies_value = cli_config.YT_DLP_COOKIES.strip()
+        
+        # Common browser names that yt-dlp supports
+        browser_names = ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']
+        
+        # Check if it's a browser name (case-insensitive)
+        if cookies_value.lower() in browser_names:
+            opts['cookiesfrombrowser'] = (cookies_value.lower(),)
+        else:
+            # Treat as file path
+            cookies_path = Path(cookies_value)
+            # If it's an absolute path or exists, use it as-is
+            if cookies_path.is_absolute() or cookies_path.exists():
+                opts['cookiefile'] = str(cookies_path)
+            else:
+                # Try relative to project root
+                project_root = cli_config.PROJECT_ROOT
+                full_path = project_root / cookies_path
+                if full_path.exists():
+                    opts['cookiefile'] = str(full_path)
+                else:
+                    # Last resort: use as-is (might be a path inside container)
+                    opts['cookiefile'] = cookies_value
+    
+    return opts
 
 
 def sanitize_filename(filename: str) -> str:
@@ -59,7 +98,8 @@ def download_audio(url: str, output_path: str, audio_format: str = "mp3") -> Opt
             print(f"Audio already exists: {potential_file.name}")
             return str(potential_file)
     
-    ydl_opts = {
+    ydl_opts = _get_ytdlp_base_opts()
+    ydl_opts.update({
         'format': 'bestaudio/best',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -69,7 +109,7 @@ def download_audio(url: str, output_path: str, audio_format: str = "mp3") -> Opt
         'outtmpl': output_path,
         'quiet': True,
         'no_warnings': True,
-    }
+    })
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -378,11 +418,12 @@ def get_video_metadata(url: str) -> Optional[Dict[str, any]]:
     Returns:
         Dictionary with video metadata (title, duration, etc.) or None if failed
     """
-    ydl_opts = {
+    ydl_opts = _get_ytdlp_base_opts()
+    ydl_opts.update({
         'quiet': True,
         'no_warnings': True,
         'extract_flat': True,
-    }
+    })
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

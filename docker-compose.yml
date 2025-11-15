@@ -28,6 +28,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CORS_ORIGINS=http://164.90.193.41:3001,http://localhost:3001
+      - YT_DLP_COOKIES=${YT_DLP_COOKIES:-}
     ports:
       - "5001:5000"
     volumes:
@@ -35,6 +36,7 @@ services:
       - ./temp:/app/temp
       - ./client_secrets.json:/app/client_secrets.json:ro
       - ./.env:/app/.env:ro
+      - ./cookies.txt:/app/cookies.txt:ro
     depends_on:
       postgres:
         condition: service_healthy

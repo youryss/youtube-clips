@@ -24,6 +24,7 @@ WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')  # int8, float1
 VIDEO_QUALITY = os.getenv('VIDEO_QUALITY', '1080p')  # 1080p, 720p, 480p, best
 TEMP_DIR = os.getenv('TEMP_DIR', 'temp')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'output')
+YT_DLP_COOKIES = os.getenv('YT_DLP_COOKIES', '')  # Path to cookies file (Netscape format) or browser name
 
 # Viral Clip Settings
 MIN_CLIP_DURATION = int(os.getenv('MIN_CLIP_DURATION', '15'))  # seconds
