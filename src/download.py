@@ -11,11 +11,15 @@ import yt_dlp
 from . import config as cli_config
 
 
-class ReadOnlyCookieJar(yt_dlp.cookies.MozillaCookieJar):
-    """Cookie jar that doesn't save to prevent read-only file system errors"""
-    def save(self, filename=None, ignore_discard=False, ignore_expires=False):
-        """Override save to do nothing - file is read-only"""
-        pass  # Don't save cookies, file is read-only
+def _make_readonly_cookiejar(cookiejar):
+    """Make a cookie jar read-only by monkey-patching the save method"""
+    if cookiejar and hasattr(cookiejar, 'save'):
+        original_save = cookiejar.save
+        def noop_save(filename=None, ignore_discard=False, ignore_expires=False):
+            """Override save to do nothing - file is read-only"""
+            pass  # Don't save cookies, file is read-only
+        cookiejar.save = noop_save
+    return cookiejar
 
 
 def _get_ytdlp_base_opts() -> Dict:
@@ -177,13 +181,9 @@ def download_video(
     try:
         # Create yt-dlp instance
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Replace cookie jar with read-only version to prevent save attempts
+        # Make cookie jar read-only to prevent save attempts
         if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            original_jar = ydl.cookiejar
-            ydl.cookiejar = ReadOnlyCookieJar()
-            # Copy cookies from original jar
-            for cookie in original_jar:
-                ydl.cookiejar.set_cookie(cookie)
+            _make_readonly_cookiejar(ydl.cookiejar)
         try:
             # Extract info first
             info = ydl.extract_info(url, download=False)
@@ -269,12 +269,9 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
         })
         
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Replace cookie jar with read-only version
+        # Make cookie jar read-only
         if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            original_jar = ydl.cookiejar
-            ydl.cookiejar = ReadOnlyCookieJar()
-            for cookie in original_jar:
-                ydl.cookiejar.set_cookie(cookie)
+            _make_readonly_cookiejar(ydl.cookiejar)
         try:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', '')
@@ -325,12 +322,9 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     
     try:
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Replace cookie jar with read-only version
+        # Make cookie jar read-only
         if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
-            original_jar = ydl.cookiejar
-            ydl.cookiejar = ReadOnlyCookieJar()
-            for cookie in original_jar:
-                ydl.cookiejar.set_cookie(cookie)
+            _make_readonly_cookiejar(ydl.cookiejar)
         try:
             info = ydl.extract_info(url, download=False)
             return {
