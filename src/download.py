@@ -168,7 +168,9 @@ def download_video(
     # We'll catch the error if it tries
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        # Create yt-dlp instance and suppress cookie save errors
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        try:
             # Extract info first
             info = ydl.extract_info(url, download=False)
             
@@ -217,6 +219,16 @@ def download_video(
                 'format': 'mp4',
                 'cached': False
             }
+        finally:
+            # Suppress read-only file system error when closing (yt-dlp tries to save cookies)
+            try:
+                ydl.close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    # Expected error - cookies file is read-only, ignore it
+                    pass
+                else:
+                    raise
     
     except Exception as e:
         print(f"Error downloading video: {e}")
@@ -282,7 +294,8 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     })
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        try:
             info = ydl.extract_info(url, download=False)
             return {
                 'title': info.get('title', 'Unknown'),

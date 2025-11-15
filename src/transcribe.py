@@ -137,8 +137,18 @@ def download_audio(url: str, output_path: str, audio_format: str = "mp3") -> Opt
     })
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        try:
             ydl.download([url])
+        finally:
+            # Suppress read-only file system error when closing
+            try:
+                ydl.close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    pass  # Expected error, ignore
+                else:
+                    raise
         
         # Find the downloaded audio file
         for ext in ['.mp3', '.m4a', '.webm', '.opus']:
@@ -451,7 +461,8 @@ def get_video_metadata(url: str) -> Optional[Dict[str, any]]:
     })
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl = yt_dlp.YoutubeDL(ydl_opts)
+        try:
             info = ydl.extract_info(url, download=False)
             return {
                 'title': info.get('title', 'Unknown'),
@@ -460,6 +471,15 @@ def get_video_metadata(url: str) -> Optional[Dict[str, any]]:
                 'id': info.get('id', ''),
                 'description': info.get('description', ''),
             }
+        finally:
+            # Suppress read-only file system error when closing
+            try:
+                ydl.close()
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    pass  # Expected error, ignore
+                else:
+                    raise
     except Exception as e:
         print(f"Error extracting metadata from {url}: {e}")
         return None
