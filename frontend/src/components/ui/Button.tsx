@@ -7,7 +7,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
   icon?: ReactNode;
   iconPosition?: 'left' | 'right';
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -57,16 +57,16 @@ const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <>
           <LoadingSpinner size="sm" className="mr-2" />
-          {children}
+          {children || ''}
         </>
       ) : (
         <>
           {icon && iconPosition === 'left' && (
-            <span className={`mr-2 ${iconSizeClasses[size]}`}>{icon}</span>
+            <span className={children ? `mr-2 ${iconSizeClasses[size]}` : iconSizeClasses[size]}>{icon}</span>
           )}
           {children}
           {icon && iconPosition === 'right' && (
-            <span className={`ml-2 ${iconSizeClasses[size]}`}>{icon}</span>
+            <span className={children ? `ml-2 ${iconSizeClasses[size]}` : iconSizeClasses[size]}>{icon}</span>
           )}
         </>
       )}

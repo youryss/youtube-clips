@@ -1,7 +1,16 @@
-import axios, { AxiosInstance } from 'axios';
-import { AuthResponse, LoginCredentials, RegisterData, User, Job, Clip, Settings, YouTubeAccount } from '../types';
+import axios, { AxiosInstance } from "axios";
+import {
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  User,
+  Job,
+  Clip,
+  Settings,
+  YouTubeAccount,
+} from "../types";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
 class APIClient {
   private client: AxiosInstance;
@@ -10,13 +19,13 @@ class APIClient {
     this.client = axios.create({
       baseURL: `${API_URL}/api`,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     // Add auth token to requests
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -29,8 +38,8 @@ class APIClient {
       async (error) => {
         if (error.response?.status === 401) {
           // Token expired, clear and redirect to login
-          localStorage.removeItem('access_token');
-          window.location.href = '/login';
+          localStorage.removeItem("access_token");
+          window.location.href = "/login";
         }
         return Promise.reject(error);
       }
@@ -39,33 +48,43 @@ class APIClient {
 
   // Auth endpoints
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/auth/register', data);
+    const response = await this.client.post<AuthResponse>(
+      "/auth/register",
+      data
+    );
     return response.data;
   }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/auth/login', credentials);
+    const response = await this.client.post<AuthResponse>(
+      "/auth/login",
+      credentials
+    );
     return response.data;
   }
 
   async getCurrentUser(): Promise<{ user: User }> {
-    const response = await this.client.get<{ user: User }>('/auth/me');
+    const response = await this.client.get<{ user: User }>("/auth/me");
     return response.data;
   }
 
   async logout(): Promise<void> {
-    await this.client.post('/auth/logout');
+    await this.client.post("/auth/logout");
   }
 
   // Jobs endpoints
-  async listJobs(params?: { page?: number; per_page?: number; status?: string }): Promise<{
+  async listJobs(params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+  }): Promise<{
     jobs: Job[];
     total: number;
     page: number;
     per_page: number;
     pages: number;
   }> {
-    const response = await this.client.get('/jobs', { params });
+    const response = await this.client.get("/jobs", { params });
     return response.data;
   }
 
@@ -75,7 +94,7 @@ class APIClient {
   }
 
   async createJob(video_url: string): Promise<{ message: string; job: Job }> {
-    const response = await this.client.post('/jobs', { video_url });
+    const response = await this.client.post("/jobs", { video_url });
     return response.data;
   }
 
@@ -84,8 +103,22 @@ class APIClient {
     return response.data;
   }
 
-  async getJobLogs(id: number): Promise<{ job_id: number; status: string; error_message?: string; current_step?: string; progress: number; message: string }> {
+  async getJobLogs(id: number): Promise<{
+    job_id: number;
+    status: string;
+    error_message?: string;
+    current_step?: string;
+    progress: number;
+    message: string;
+  }> {
     const response = await this.client.get(`/jobs/${id}/logs`);
+    return response.data;
+  }
+
+  async getJobTranscript(
+    id: number
+  ): Promise<{ transcript: string; job_id: number }> {
+    const response = await this.client.get(`/jobs/${id}/transcript`);
     return response.data;
   }
 
@@ -102,7 +135,7 @@ class APIClient {
     per_page: number;
     pages: number;
   }> {
-    const response = await this.client.get('/clips', { params });
+    const response = await this.client.get("/clips", { params });
     return response.data;
   }
 
@@ -119,6 +152,10 @@ class APIClient {
     return `${API_URL}/api/clips/${id}/thumbnail`;
   }
 
+  getJobThumbnailUrl(id: number): string {
+    return `${API_URL}/api/jobs/${id}/thumbnail`;
+  }
+
   async uploadClipToYouTube(
     clipId: number,
     options?: {
@@ -129,8 +166,16 @@ class APIClient {
       privacy?: string;
       make_shorts?: boolean;
     }
-  ): Promise<{ message: string; video_id?: string; video_url?: string; shorts_url?: string }> {
-    const response = await this.client.post(`/youtube/clips/${clipId}/upload`, options || {});
+  ): Promise<{
+    message: string;
+    video_id?: string;
+    video_url?: string;
+    shorts_url?: string;
+  }> {
+    const response = await this.client.post(
+      `/youtube/clips/${clipId}/upload`,
+      options || {}
+    );
     return response.data;
   }
 
@@ -141,32 +186,54 @@ class APIClient {
 
   // Settings endpoints
   async getSettings(): Promise<{ settings: Settings }> {
-    const response = await this.client.get('/settings');
+    const response = await this.client.get("/settings");
     return response.data;
   }
 
-  async updateSettings(settings: Partial<Settings>): Promise<{ message: string; settings: Settings }> {
-    const response = await this.client.put('/settings', settings);
+  async updateSettings(
+    settings: Partial<Settings>
+  ): Promise<{ message: string; settings: Settings }> {
+    const response = await this.client.put("/settings", settings);
+    return response.data;
+  }
+
+  async getCriteria(): Promise<{ criteria: { [key: string]: string } }> {
+    const response = await this.client.get("/settings/criteria");
+    return response.data;
+  }
+
+  async getCriterion(
+    criterionName: string
+  ): Promise<{ criterion: string; content: string }> {
+    const response = await this.client.get(
+      `/settings/criteria/${criterionName}`
+    );
     return response.data;
   }
 
   // YouTube accounts endpoints
   async listYouTubeAccounts(): Promise<{ accounts: YouTubeAccount[] }> {
-    const response = await this.client.get('/youtube/accounts');
+    const response = await this.client.get("/youtube/accounts");
     return response.data;
   }
 
-  async getYouTubeAuthUrl(redirectUri?: string): Promise<{ authorization_url: string; state: string }> {
+  async getYouTubeAuthUrl(
+    redirectUri?: string
+  ): Promise<{ authorization_url: string; state: string }> {
     const params = redirectUri ? { redirect_uri: redirectUri } : {};
-    const response = await this.client.get('/youtube/auth/url', { params });
+    const response = await this.client.get("/youtube/auth/url", { params });
     return response.data;
   }
 
-  async handleYouTubeCallback(code: string, state: string, redirectUri?: string): Promise<{ message: string; account: YouTubeAccount }> {
-    const response = await this.client.post('/youtube/auth/callback', {
+  async handleYouTubeCallback(
+    code: string,
+    state: string,
+    redirectUri?: string
+  ): Promise<{ message: string; account: YouTubeAccount }> {
+    const response = await this.client.post("/youtube/auth/callback", {
       code,
       state,
-      redirect_uri: redirectUri
+      redirect_uri: redirectUri,
     });
     return response.data;
   }
@@ -179,4 +246,3 @@ class APIClient {
 
 export const api = new APIClient();
 export default api;
-

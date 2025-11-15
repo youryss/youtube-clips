@@ -7,7 +7,6 @@ import {
   FiFilm,
   FiSettings,
   FiLogOut,
-  FiMenu,
   FiX,
 } from 'react-icons/fi';
 

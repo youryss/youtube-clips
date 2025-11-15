@@ -43,6 +43,9 @@ class Job(db.Model):
     
     def to_dict(self, include_clips=False):
         """Convert to dictionary"""
+        import re
+        from .clip import Clip
+        
         data = {
             'id': self.id,
             'video_url': self.video_url,
@@ -57,6 +60,28 @@ class Job(db.Model):
             'started_at': self.started_at.isoformat() if self.started_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
+        
+        # Add thumbnail URL if YouTube video
+        patterns = [
+            r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})',
+            r'youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, self.video_url)
+            if match:
+                youtube_id = match.group(1)
+                data['thumbnail_url'] = f"https://img.youtube.com/vi/{youtube_id}/maxresdefault.jpg"
+                data['has_thumbnail'] = True
+                break
+        else:
+            # Check if first clip has thumbnail
+            first_clip = self.clips.filter(Clip.thumbnail_path.isnot(None)).first()
+            if first_clip and first_clip.thumbnail_path:
+                data['has_thumbnail'] = True
+                data['thumbnail_clip_id'] = first_clip.id
+            else:
+                data['has_thumbnail'] = False
         
         if include_clips:
             data['clips'] = [clip.to_dict() for clip in self.clips.all()]

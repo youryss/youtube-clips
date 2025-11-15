@@ -21,6 +21,9 @@ export interface Job {
   started_at?: string;
   completed_at?: string;
   clips?: Clip[];
+  thumbnail_url?: string;
+  has_thumbnail?: boolean;
+  thumbnail_clip_id?: number;
 }
 
 export interface Clip {

@@ -219,6 +219,66 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-3 mb-3">
+                        {/* Thumbnail */}
+                        <div className="flex-shrink-0 w-32 h-20 bg-neutral-200 rounded-lg overflow-hidden">
+                          {job.thumbnail_url ? (
+                            <img
+                              src={job.thumbnail_url}
+                              alt={job.video_title || "Video thumbnail"}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to clip thumbnail if YouTube thumbnail fails
+                                if (job.thumbnail_clip_id) {
+                                  (e.target as HTMLImageElement).src =
+                                    api.getThumbnailUrl(job.thumbnail_clip_id);
+                                } else {
+                                  // Show placeholder if all thumbnails fail
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                  const parent = (e.target as HTMLImageElement).parentElement;
+                                  if (parent && !parent.querySelector('.thumbnail-placeholder')) {
+                                    const placeholder = document.createElement('div');
+                                    placeholder.className = 'thumbnail-placeholder w-full h-full flex items-center justify-center bg-neutral-100';
+                                    placeholder.innerHTML = '<svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>';
+                                    parent.appendChild(placeholder);
+                                  }
+                                }
+                              }}
+                            />
+                          ) : job.thumbnail_clip_id ? (
+                            <img
+                              src={api.getThumbnailUrl(job.thumbnail_clip_id)}
+                              alt={job.video_title || "Video thumbnail"}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                                const parent = (e.target as HTMLImageElement).parentElement;
+                                if (parent && !parent.querySelector('.thumbnail-placeholder')) {
+                                  const placeholder = document.createElement('div');
+                                  placeholder.className = 'thumbnail-placeholder w-full h-full flex items-center justify-center bg-neutral-100';
+                                  placeholder.innerHTML = '<svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>';
+                                  parent.appendChild(placeholder);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-neutral-100">
+                              <svg
+                                className="w-8 h-8 text-neutral-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-neutral-900 truncate">
                             {job.video_title || job.video_url}

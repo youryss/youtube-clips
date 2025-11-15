@@ -99,7 +99,7 @@ const Clips: React.FC = () => {
 
     setUploading(clip.id);
     try {
-      const result = await api.uploadClipToYouTube(clip.id, {
+      await api.uploadClipToYouTube(clip.id, {
         title: clip.title,
         description: `Generated viral clip: ${clip.title || clip.filename}`,
         make_shorts: true
