@@ -3,6 +3,14 @@ FROM node:20-alpine as build
 
 WORKDIR /app
 
+# Accept build arguments for environment variables
+ARG REACT_APP_API_URL=http://localhost:5001
+ARG REACT_APP_WS_URL=ws://localhost:5001
+
+# Set environment variables for build
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_WS_URL=$REACT_APP_WS_URL
+
 # Copy package files first for better caching
 COPY package*.json ./
 
