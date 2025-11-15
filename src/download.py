@@ -326,7 +326,8 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     
     try:
         ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Make cookie jar read-only
+        # Make cookie jar read-only BEFORE extracting info
+        # This prevents yt-dlp from trying to save cookies later
         if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
             _make_readonly_cookiejar(ydl.cookiejar)
         try:
