@@ -68,6 +68,21 @@ def _disable_cookie_saving(ydl):
                     raise
         ydl.close = safe_close
     
+    # Also patch __exit__ for context manager support (with statements)
+    if hasattr(ydl, '__exit__'):
+        original_exit = ydl.__exit__
+        def safe_exit(exc_type, exc_val, exc_tb):
+            """Override __exit__ to handle cookie save errors"""
+            try:
+                return original_exit(exc_type, exc_val, exc_tb)
+            except OSError as e:
+                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                    # Expected error, ignore it and return False to suppress
+                    return False
+                else:
+                    raise
+        ydl.__exit__ = safe_exit
+    
     return ydl
 
 
