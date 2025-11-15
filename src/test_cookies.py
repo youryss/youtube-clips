@@ -1,14 +1,27 @@
 #!/usr/bin/env python3
 """
 Test script to verify cookie patches work correctly
-Run this in the container to test: docker-compose exec backend python3 /app/test_cookies.py
+Run this in the container to test: docker-compose exec backend python3 -m src.test_cookies
+Or: docker-compose exec backend python3 /app/src/test_cookies.py
 """
 
 import sys
 import os
-sys.path.insert(0, '/app/src')
 
-from download import _disable_cookie_saving
+# Set up path for imports - PYTHONPATH should already be /app in container
+# But we'll ensure it's set correctly
+if '/app' not in sys.path:
+    sys.path.insert(0, '/app')
+
+# Import as a module to handle relative imports
+import importlib.util
+spec = importlib.util.spec_from_file_location("download", "/app/src/download.py")
+download_module = importlib.util.module_from_spec(spec)
+sys.modules['download'] = download_module
+spec.loader.exec_module(download_module)
+
+# Now we can get the function
+_disable_cookie_saving = download_module._disable_cookie_saving
 import yt_dlp
 
 # Test with our patches
