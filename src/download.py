@@ -62,10 +62,23 @@ def _get_ytdlp_base_opts() -> Dict:
             
             if cookie_file:
                 opts['cookiefile'] = cookie_file
+                # Disable cookie saving to prevent read-only file system errors
+                # The file is mounted read-only, so we can't save updates anyway
+                opts['no_cookies'] = False  # We want to use cookies
                 # Verify file exists if it's a real path
                 if Path(cookie_file).exists():
                     file_size = Path(cookie_file).stat().st_size
                     print(f"[yt-dlp] Cookie file verified: {cookie_file} ({file_size} bytes)")
+                    # Check if file has YouTube cookies
+                    try:
+                        with open(cookie_file, 'r') as f:
+                            content = f.read()
+                            if 'youtube.com' in content or '.youtube.com' in content:
+                                print(f"[yt-dlp] YouTube cookies found in file")
+                            else:
+                                print(f"[yt-dlp] WARNING: No YouTube cookies found in file")
+                    except:
+                        pass
                 else:
                     print(f"[yt-dlp] WARNING: Cookie file does not exist: {cookie_file}")
     else:
@@ -142,7 +155,17 @@ def download_video(
             'key': 'FFmpegVideoConvertor',
             'preferedformat': 'mp4',
         }],
+        # Add user agent to appear more like a browser
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'referer': 'https://www.youtube.com/',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+            }
+        },
     })
+    # Prevent yt-dlp from trying to save cookies (file is read-only)
+    # We'll catch the error if it tries
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -249,6 +272,13 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     ydl_opts.update({
         'quiet': True,
         'no_warnings': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'referer': 'https://www.youtube.com/',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+            }
+        },
     })
     
     try:
