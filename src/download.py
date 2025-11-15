@@ -174,6 +174,8 @@ def download_video(
                 'player_client': ['android', 'web'],
             }
         },
+        # Fallback format if requested format isn't available
+        'format_sort': ['res', 'ext:mp4:m4a', 'codec:h264', 'acodec:aac'],
     })
     # Prevent yt-dlp from trying to save cookies (file is read-only)
     # We'll catch the error if it tries
@@ -313,6 +315,9 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
         'no_warnings': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
+        # Use a flexible format for info extraction - just get any available format
+        # Fallback chain: best -> bestvideo+bestaudio -> bestvideo -> bestaudio -> worst (as last resort)
+        'format': 'best/bestvideo+bestaudio/bestvideo/bestaudio/worst',
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web'],
