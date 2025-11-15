@@ -2,18 +2,31 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Clip } from '../types';
 import toast from 'react-hot-toast';
+import { FiRefreshCw, FiDownload, FiUpload, FiTrash2, FiGrid, FiList, FiSearch, FiCheckCircle } from 'react-icons/fi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ClipPlayerModal from '../components/ClipPlayerModal';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import EmptyState from '../components/ui/EmptyState';
 
 const Clips: React.FC = () => {
   const [clips, setClips] = useState<Clip[]>([]);
+  const [filteredClips, setFilteredClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState<number | null>(null);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     loadClips();
   }, []);
+
+  useEffect(() => {
+    filterClips();
+  }, [searchQuery, clips]);
 
   const loadClips = async () => {
     setIsLoading(true);
@@ -28,17 +41,31 @@ const Clips: React.FC = () => {
     }
   };
 
+  const filterClips = () => {
+    if (!searchQuery.trim()) {
+      setFilteredClips(clips);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = clips.filter(
+      (clip) =>
+        clip.title?.toLowerCase().includes(query) ||
+        clip.filename?.toLowerCase().includes(query) ||
+        clip.criteria_matched?.some((c) => c.toLowerCase().includes(query))
+    );
+    setFilteredClips(filtered);
+  };
+
   const handleDownload = async (clip: Clip) => {
     try {
       const token = localStorage.getItem('access_token');
       const url = api.getDownloadUrl(clip.id);
       
-      // Create a temporary link with authentication
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', clip.filename);
       
-      // Fetch with auth header and create blob URL
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -84,7 +111,6 @@ const Clips: React.FC = () => {
       const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to upload clip';
       toast.error(errorMsg);
       
-      // If no account, suggest connecting one
       if (errorMsg.includes('No active YouTube account')) {
         setTimeout(() => {
           if (window.confirm('Would you like to connect a YouTube account now?')) {
@@ -125,182 +151,278 @@ const Clips: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div className="px-4 py-6 sm:px-0">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Generated Clips</h1>
-          <button
-            onClick={loadClips}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Refresh
-          </button>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-900">Generated Clips</h1>
+          <p className="text-neutral-600 mt-1">View and manage your viral clips</p>
         </div>
+        <Button
+          onClick={loadClips}
+          variant="outline"
+          icon={<FiRefreshCw />}
+        >
+          Refresh
+        </Button>
+      </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <LoadingSpinner />
+      {/* Filters and View Toggle */}
+      <Card>
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1 w-full">
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search clips by title, filename, or criteria..."
+              variant="search"
+              leftIcon={<FiSearch className="w-5 h-5" />}
+            />
           </div>
-        ) : clips.length === 0 ? (
-          <div className="bg-white shadow sm:rounded-lg p-6">
-            <p className="text-gray-600 text-center py-8">
-              No clips generated yet. Create a job to generate viral clips!
-            </p>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setViewMode('grid')}
+              variant={viewMode === 'grid' ? 'primary' : 'outline'}
+              size="sm"
+              icon={<FiGrid />}
+            >
+              Grid
+            </Button>
+            <Button
+              onClick={() => setViewMode('list')}
+              variant={viewMode === 'list' ? 'primary' : 'outline'}
+              size="sm"
+              icon={<FiList />}
+            >
+              List
+            </Button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {clips.map((clip) => (
+        </div>
+      </Card>
+
+      {/* Clips Display */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <LoadingSpinner />
+        </div>
+      ) : filteredClips.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<FiGrid className="w-full h-full" />}
+            title={searchQuery ? "No clips found" : "No clips generated yet"}
+            description={searchQuery ? "Try adjusting your search query" : "Create a job to generate viral clips!"}
+            action={!searchQuery ? {
+              label: "Go to Dashboard",
+              onClick: () => window.location.href = '/dashboard'
+            } : undefined}
+          />
+        </Card>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredClips.map((clip) => (
+            <Card key={clip.id} hover className="overflow-hidden">
+              {/* Thumbnail */}
               <div
-                key={clip.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                className="relative aspect-video bg-neutral-200 cursor-pointer group"
+                onClick={() => setSelectedClip(clip)}
               >
+                {clip.thumbnail_path ? (
+                  <img
+                    src={api.getThumbnailUrl(clip.id)}
+                    alt={clip.title || 'Clip thumbnail'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-neutral-100">
+                    <svg
+                      className="w-12 h-12 text-neutral-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                )}
+                
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all">
+                  <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg
+                      className="w-8 h-8 text-neutral-900 ml-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Viral Score Badge */}
+                {clip.viral_score && (
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="viral" size="sm">
+                      {Math.round(clip.viral_score)}%
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Uploaded Badge */}
+                {clip.is_uploaded && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="success" size="sm" icon={<FiCheckCircle />}>
+                      Uploaded
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* Clip Info */}
+              <div className="p-4">
+                <h3 className="font-semibold text-neutral-900 mb-2 line-clamp-2 min-h-[3rem]">
+                  {clip.title || clip.filename}
+                </h3>
+                
+                <div className="space-y-1 text-sm text-neutral-500 mb-4">
+                  <div className="flex justify-between">
+                    <span>Duration:</span>
+                    <span className="font-medium text-neutral-700">{formatDuration(clip.duration)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Size:</span>
+                    <span className="font-medium text-neutral-700">{formatFileSize(clip.file_size)}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleDownload(clip)}
+                    variant="outline"
+                    size="sm"
+                    icon={<FiDownload />}
+                    className="flex-1"
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    onClick={() => handleUpload(clip)}
+                    disabled={uploading === clip.id || clip.is_uploaded}
+                    variant="danger"
+                    size="sm"
+                    icon={<FiUpload />}
+                    loading={uploading === clip.id}
+                    className="flex-1"
+                  >
+                    {clip.is_uploaded ? 'Uploaded' : 'Upload'}
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(clip.id)}
+                    variant="ghost"
+                    size="sm"
+                    icon={<FiTrash2 />}
+                    className="text-error-600 hover:text-error-700 hover:bg-error-50"
+                  />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredClips.map((clip) => (
+            <Card key={clip.id} hover>
+              <div className="flex gap-4">
                 {/* Thumbnail */}
                 <div
-                  className="relative aspect-video bg-gray-200 cursor-pointer group"
+                  className="relative w-32 h-20 bg-neutral-200 rounded-lg cursor-pointer group flex-shrink-0"
                   onClick={() => setSelectedClip(clip)}
                 >
                   {clip.thumbnail_path ? (
                     <img
                       src={api.getThumbnailUrl(clip.id)}
                       alt={clip.title || 'Clip thumbnail'}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-lg"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <svg
-                        className="w-12 h-12 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
+                    <div className="w-full h-full flex items-center justify-center bg-neutral-100 rounded-lg">
+                      <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
-                    </div>
-                  )}
-                  
-                  {/* Play Button Overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all">
-                    <div className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <svg
-                        className="w-8 h-8 text-gray-900 ml-1"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                  </div>
-                  
-                  {/* Viral Score Badge */}
-                  {clip.viral_score && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
-                      <span>Viral</span>
-                      <span>{Math.round(clip.viral_score)}%</span>
                     </div>
                   )}
                 </div>
 
-                {/* Clip Info */}
-                <div className="p-4">
-                  <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">
-                    {clip.title || clip.filename}
-                  </h3>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <h3 className="font-semibold text-neutral-900 truncate">
+                      {clip.title || clip.filename}
+                    </h3>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {clip.viral_score && (
+                        <Badge variant="viral" size="sm">
+                          {Math.round(clip.viral_score)}%
+                        </Badge>
+                      )}
+                      {clip.is_uploaded && (
+                        <Badge variant="success" size="sm" icon={<FiCheckCircle />}>
+                          Uploaded
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                   
-                  <div className="space-y-1 text-sm text-gray-500 mb-4">
-                    <div className="flex justify-between">
-                      <span>Duration:</span>
-                      <span className="font-medium">{formatDuration(clip.duration)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Size:</span>
-                      <span className="font-medium">{formatFileSize(clip.file_size)}</span>
-                    </div>
-                    {clip.is_uploaded && (
-                      <div className="flex items-center gap-1 text-green-600">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        <span className="text-xs">Uploaded</span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4 text-sm text-neutral-600 mb-3">
+                    <span>Duration: <span className="font-medium text-neutral-700">{formatDuration(clip.duration)}</span></span>
+                    <span>Size: <span className="font-medium text-neutral-700">{formatFileSize(clip.file_size)}</span></span>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
+                  <div className="flex items-center gap-2">
+                    <Button
                       onClick={() => handleDownload(clip)}
-                      className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 flex items-center justify-center gap-1"
+                      variant="outline"
+                      size="sm"
+                      icon={<FiDownload />}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                        />
-                      </svg>
                       Download
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleUpload(clip)}
                       disabled={uploading === clip.id || clip.is_uploaded}
-                      className="flex-1 px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                      variant="danger"
+                      size="sm"
+                      icon={<FiUpload />}
+                      loading={uploading === clip.id}
                     >
-                      {uploading === clip.id ? (
-                        <LoadingSpinner size="sm" />
-                      ) : clip.is_uploaded ? (
-                        <>
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Uploaded
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                          </svg>
-                          Upload
-                        </>
-                      )}
-                    </button>
-                    <button
+                      {clip.is_uploaded ? 'Uploaded' : 'Upload'}
+                    </Button>
+                    <Button
                       onClick={() => handleDelete(clip.id)}
-                      className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800"
-                      title="Delete clip"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                      variant="ghost"
+                      size="sm"
+                      icon={<FiTrash2 />}
+                      className="text-error-600 hover:text-error-700 hover:bg-error-50"
+                    />
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
       
       {/* Video Player Modal */}
       <ClipPlayerModal

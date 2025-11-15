@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Settings as SettingsType, YouTubeAccount } from '../types';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { FiSave, FiCheckCircle, FiXCircle, FiTrash2, FiPlus } from 'react-icons/fi';
+import Card, { CardHeader, CardBody } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<SettingsType | null>(null);
@@ -9,6 +15,7 @@ const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [activeTab, setActiveTab] = useState('transcription');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -42,10 +49,7 @@ const Settings: React.FC = () => {
       const redirectUri = `${window.location.origin}/youtube/callback`;
       const { authorization_url } = await api.getYouTubeAuthUrl(redirectUri);
       
-      // Store state in sessionStorage for callback
       sessionStorage.setItem('youtube_oauth_redirect', redirectUri);
-      
-      // Open OAuth window
       window.location.href = authorization_url;
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to connect YouTube account');
@@ -101,474 +105,492 @@ const Settings: React.FC = () => {
     setSettings({ ...settings, active_criteria: newCriteria });
   };
 
+  const tabs = [
+    { id: 'transcription', label: 'Transcription' },
+    { id: 'ai', label: 'AI Analysis' },
+    { id: 'clips', label: 'Clip Generation' },
+    { id: 'viral', label: 'Viral Analysis' },
+    { id: 'thumbnails', label: 'Thumbnails' },
+    { id: 'youtube', label: 'YouTube' },
+  ];
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner />
       </div>
     );
   }
 
   if (!settings) {
     return (
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-red-50 p-4 rounded-md">
-            <p className="text-red-800">Failed to load settings</p>
-          </div>
+      <Card>
+        <div className="p-6 text-center">
+          <p className="text-error-600">Failed to load settings</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div className="px-4 py-6 sm:px-0">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-900">Settings</h1>
+          <p className="text-neutral-600 mt-1">Configure your video processing preferences</p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          loading={saving}
+          variant="primary"
+          icon={<FiSave />}
+        >
+          Save Changes
+        </Button>
+      </div>
+
+      {/* Notification */}
+      {notification && (
+        <div
+          className={`p-4 rounded-lg flex items-center gap-2 ${
+            notification.type === 'success'
+              ? 'bg-success-50 text-success-800 border border-success-200'
+              : 'bg-error-50 text-error-800 border border-error-200'
+          }`}
+        >
+          {notification.type === 'success' ? (
+            <FiCheckCircle className="w-5 h-5" />
+          ) : (
+            <FiXCircle className="w-5 h-5" />
+          )}
+          <p className="font-medium">{notification.message}</p>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <Card padding="none">
+        <div className="border-b border-neutral-200">
+          <div className="flex overflow-x-auto scrollbar-thin">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors
+                  ${
+                    activeTab === tab.id
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Notification */}
-        {notification && (
-          <div
-            className={`mb-6 p-4 rounded-md ${
-              notification.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-            }`}
-          >
-            <p className="font-medium">{notification.message}</p>
-          </div>
-        )}
-
-        <div className="space-y-6">
-          {/* Whisper Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Transcription Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Whisper Model
-                </label>
-                <select
-                  value={settings.whisper_model}
-                  onChange={(e) => handleInputChange('whisper_model', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="tiny">Tiny (Fastest, Less Accurate)</option>
-                  <option value="base">Base</option>
-                  <option value="small">Small (Balanced)</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large (Slowest, Most Accurate)</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Larger models are more accurate but slower</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Device
-                </label>
-                <select
-                  value={settings.whisper_device}
-                  onChange={(e) => handleInputChange('whisper_device', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="auto">Auto</option>
-                  <option value="cpu">CPU</option>
-                  <option value="cuda">CUDA (GPU)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Compute Type
-                </label>
-                <select
-                  value={settings.whisper_compute_type}
-                  onChange={(e) => handleInputChange('whisper_compute_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="int8">INT8 (Fast, Less Memory)</option>
-                  <option value="float16">Float16</option>
-                  <option value="float32">Float32 (Accurate, More Memory)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Analysis Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  OpenAI Model
-                </label>
-                <select
-                  value={settings.openai_model}
-                  onChange={(e) => handleInputChange('openai_model', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                  <option value="gpt-4">GPT-4</option>
-                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Video Quality
-                </label>
-                <select
-                  value={settings.video_quality}
-                  onChange={(e) => handleInputChange('video_quality', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="720p">720p</option>
-                  <option value="1080p">1080p (Recommended)</option>
-                  <option value="1440p">1440p</option>
-                  <option value="2160p">4K (2160p)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Clip Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Clip Generation Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Min Clip Duration (seconds)
-                </label>
-                <input
-                  type="number"
-                  value={settings.min_clip_duration}
-                  onChange={(e) => handleInputChange('min_clip_duration', parseInt(e.target.value))}
-                  min="5"
-                  max="60"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Max Clip Duration (seconds)
-                </label>
-                <input
-                  type="number"
-                  value={settings.max_clip_duration}
-                  onChange={(e) => handleInputChange('max_clip_duration', parseInt(e.target.value))}
-                  min="10"
-                  max="180"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Padding Before (seconds)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={settings.clip_padding_before}
-                  onChange={(e) => handleInputChange('clip_padding_before', parseFloat(e.target.value))}
-                  min="0"
-                  max="5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">Extra time before the clip starts</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Padding After (seconds)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={settings.clip_padding_after}
-                  onChange={(e) => handleInputChange('clip_padding_after', parseFloat(e.target.value))}
-                  min="0"
-                  max="5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">Extra time after the clip ends</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Viral Analysis Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Viral Analysis Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Max Clips Per Video
-                </label>
-                <input
-                  type="number"
-                  value={settings.max_clips_per_video}
-                  onChange={(e) => handleInputChange('max_clips_per_video', parseInt(e.target.value))}
-                  min="1"
-                  max="20"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Min Viral Score (1-10)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={settings.min_viral_score}
-                  onChange={(e) => handleInputChange('min_viral_score', parseFloat(e.target.value))}
-                  min="1"
-                  max="10"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">Only clips above this score will be created</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Active Criteria
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {['viral_hooks', 'emotional_peaks', 'value_bombs', 'humor_moments'].map((criterion) => (
-                  <label key={criterion} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.active_criteria?.includes(criterion) || false}
-                      onChange={() => toggleCriteria(criterion)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 capitalize">
-                      {criterion.replace('_', ' ')}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Thumbnail Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Thumbnail Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Thumbnail Mode
-                </label>
-                <select
-                  value={settings.thumbnail_mode}
-                  onChange={(e) => handleInputChange('thumbnail_mode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="none">None</option>
-                  <option value="basic">Basic (First Frame)</option>
-                  <option value="advanced">Advanced (Best Frame)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Frames to Analyze
-                </label>
-                <input
-                  type="number"
-                  value={settings.thumbnail_frames}
-                  onChange={(e) => handleInputChange('thumbnail_frames', parseInt(e.target.value))}
-                  min="4"
-                  max="20"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">More frames = better thumbnail, slower processing</p>
-              </div>
-            </div>
-          </div>
-
-          {/* YouTube Accounts */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">YouTube Accounts</h2>
-              <button
-                onClick={handleConnectYouTube}
-                disabled={connecting}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {connecting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
-                    </svg>
-                    Connect YouTube Account
-                  </>
-                )}
-              </button>
-            </div>
-
-            {youtubeAccounts.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No YouTube accounts connected.</p>
-                <p className="text-sm mt-2">Connect an account to upload clips directly to YouTube.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {youtubeAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                  >
-                    <div className="flex items-center gap-4">
-                      {account.channel_thumbnail && (
-                        <img
-                          src={account.channel_thumbnail}
-                          alt={account.channel_title || 'Channel'}
-                          className="w-12 h-12 rounded-full"
-                        />
-                      )}
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          {account.channel_title || 'Unknown Channel'}
-                        </h3>
-                        <p className="text-sm text-gray-500">Channel ID: {account.channel_id}</p>
-                        {account.is_verified && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mt-1">
-                            Verified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {account.is_active && (
-                        <span className="text-sm text-green-600 font-medium">Active</span>
-                      )}
-                      <button
-                        onClick={() => handleDeleteAccount(account.id)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+        <div className="p-6">
+          {/* Transcription Settings */}
+          {activeTab === 'transcription' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">Whisper Model Settings</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <Input
+                        label="Whisper Model"
+                        type="select"
+                        value={settings.whisper_model}
+                        onChange={(e) => handleInputChange('whisper_model', e.target.value)}
                       >
-                        Disconnect
-                      </button>
+                        <option value="tiny">Tiny (Fastest, Less Accurate)</option>
+                        <option value="base">Base</option>
+                        <option value="small">Small (Balanced)</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large (Slowest, Most Accurate)</option>
+                      </Input>
+                      <p className="mt-1 text-xs text-neutral-500">Larger models are more accurate but slower</p>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Device"
+                        type="select"
+                        value={settings.whisper_device}
+                        onChange={(e) => handleInputChange('whisper_device', e.target.value)}
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="cpu">CPU</option>
+                        <option value="cuda">CUDA (GPU)</option>
+                      </Input>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Compute Type"
+                        type="select"
+                        value={settings.whisper_compute_type}
+                        onChange={(e) => handleInputChange('whisper_compute_type', e.target.value)}
+                      >
+                        <option value="int8">INT8 (Fast, Less Memory)</option>
+                        <option value="float16">Float16</option>
+                        <option value="float32">Float32 (Accurate, More Memory)</option>
+                      </Input>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* YouTube Upload Settings */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">YouTube Upload Settings</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Default Privacy
-                </label>
-                <select
-                  value={settings.default_youtube_privacy}
-                  onChange={(e) => handleInputChange('default_youtube_privacy', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="private">Private</option>
-                  <option value="unlisted">Unlisted</option>
-                  <option value="public">Public</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Default Category
-                </label>
-                <select
-                  value={settings.default_youtube_category}
-                  onChange={(e) => handleInputChange('default_youtube_category', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="1">Film & Animation</option>
-                  <option value="2">Autos & Vehicles</option>
-                  <option value="10">Music</option>
-                  <option value="15">Pets & Animals</option>
-                  <option value="17">Sports</option>
-                  <option value="19">Travel & Events</option>
-                  <option value="20">Gaming</option>
-                  <option value="22">People & Blogs</option>
-                  <option value="23">Comedy</option>
-                  <option value="24">Entertainment</option>
-                  <option value="25">News & Politics</option>
-                  <option value="26">Howto & Style</option>
-                  <option value="27">Education</option>
-                  <option value="28">Science & Technology</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.make_shorts}
-                    onChange={(e) => handleInputChange('make_shorts', e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    Upload as YouTube Shorts
-                  </span>
-                </label>
-                <p className="mt-1 ml-6 text-xs text-gray-500">
-                  Clips will be formatted and tagged as YouTube Shorts
-                </p>
-              </div>
+                </CardBody>
+              </Card>
             </div>
-          </div>
+          )}
 
-          {/* Save Button (Bottom) */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Saving...
-                </>
-              ) : (
-                'Save All Settings'
-              )}
-            </button>
-          </div>
+          {/* AI Analysis Settings */}
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">AI Model Settings</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Input
+                        label="OpenAI Model"
+                        type="select"
+                        value={settings.openai_model}
+                        onChange={(e) => handleInputChange('openai_model', e.target.value)}
+                      >
+                        <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                      </Input>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Video Quality"
+                        type="select"
+                        value={settings.video_quality}
+                        onChange={(e) => handleInputChange('video_quality', e.target.value)}
+                      >
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p (Recommended)</option>
+                        <option value="1440p">1440p</option>
+                        <option value="2160p">4K (2160p)</option>
+                      </Input>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* Clip Generation Settings */}
+          {activeTab === 'clips' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">Clip Duration Settings</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Input
+                        label="Min Clip Duration (seconds)"
+                        type="number"
+                        value={settings.min_clip_duration}
+                        onChange={(e) => handleInputChange('min_clip_duration', parseInt(e.target.value))}
+                        min="5"
+                        max="60"
+                      />
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Max Clip Duration (seconds)"
+                        type="number"
+                        value={settings.max_clip_duration}
+                        onChange={(e) => handleInputChange('max_clip_duration', parseInt(e.target.value))}
+                        min="10"
+                        max="180"
+                      />
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Padding Before (seconds)"
+                        type="number"
+                        step="0.1"
+                        value={settings.clip_padding_before}
+                        onChange={(e) => handleInputChange('clip_padding_before', parseFloat(e.target.value))}
+                        min="0"
+                        max="5"
+                      />
+                      <p className="mt-1 text-xs text-neutral-500">Extra time before the clip starts</p>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Padding After (seconds)"
+                        type="number"
+                        step="0.1"
+                        value={settings.clip_padding_after}
+                        onChange={(e) => handleInputChange('clip_padding_after', parseFloat(e.target.value))}
+                        min="0"
+                        max="5"
+                      />
+                      <p className="mt-1 text-xs text-neutral-500">Extra time after the clip ends</p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* Viral Analysis Settings */}
+          {activeTab === 'viral' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">Viral Analysis Configuration</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <Input
+                        label="Max Clips Per Video"
+                        type="number"
+                        value={settings.max_clips_per_video}
+                        onChange={(e) => handleInputChange('max_clips_per_video', parseInt(e.target.value))}
+                        min="1"
+                        max="20"
+                      />
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Min Viral Score (1-10)"
+                        type="number"
+                        step="0.1"
+                        value={settings.min_viral_score}
+                        onChange={(e) => handleInputChange('min_viral_score', parseFloat(e.target.value))}
+                        min="1"
+                        max="10"
+                      />
+                      <p className="mt-1 text-xs text-neutral-500">Only clips above this score will be created</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-3">
+                      Active Criteria
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {['viral_hooks', 'emotional_peaks', 'value_bombs', 'humor_moments'].map((criterion) => (
+                        <label key={criterion} className="flex items-center space-x-2 cursor-pointer p-3 rounded-lg border border-neutral-200 hover:bg-neutral-50">
+                          <input
+                            type="checkbox"
+                            checked={settings.active_criteria?.includes(criterion) || false}
+                            onChange={() => toggleCriteria(criterion)}
+                            className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                          />
+                          <span className="text-sm text-neutral-700 capitalize">
+                            {criterion.replace('_', ' ')}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* Thumbnail Settings */}
+          {activeTab === 'thumbnails' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">Thumbnail Generation</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Input
+                        label="Thumbnail Mode"
+                        type="select"
+                        value={settings.thumbnail_mode}
+                        onChange={(e) => handleInputChange('thumbnail_mode', e.target.value)}
+                      >
+                        <option value="none">None</option>
+                        <option value="basic">Basic (First Frame)</option>
+                        <option value="advanced">Advanced (Best Frame)</option>
+                      </Input>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Frames to Analyze"
+                        type="number"
+                        value={settings.thumbnail_frames}
+                        onChange={(e) => handleInputChange('thumbnail_frames', parseInt(e.target.value))}
+                        min="4"
+                        max="20"
+                      />
+                      <p className="mt-1 text-xs text-neutral-500">More frames = better thumbnail, slower processing</p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* YouTube Settings */}
+          {activeTab === 'youtube' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-neutral-900">YouTube Accounts</h2>
+                    <Button
+                      onClick={handleConnectYouTube}
+                      disabled={connecting}
+                      loading={connecting}
+                      variant="primary"
+                      size="sm"
+                      icon={<FiPlus />}
+                    >
+                      Connect Account
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardBody>
+                  {youtubeAccounts.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-500">
+                      <p>No YouTube accounts connected.</p>
+                      <p className="text-sm mt-2">Connect an account to upload clips directly to YouTube.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {youtubeAccounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg"
+                        >
+                          <div className="flex items-center gap-4">
+                            {account.channel_thumbnail && (
+                              <img
+                                src={account.channel_thumbnail}
+                                alt={account.channel_title || 'Channel'}
+                                className="w-12 h-12 rounded-full"
+                              />
+                            )}
+                            <div>
+                              <h3 className="font-medium text-neutral-900">
+                                {account.channel_title || 'Unknown Channel'}
+                              </h3>
+                              <p className="text-sm text-neutral-500">Channel ID: {account.channel_id}</p>
+                              {account.is_verified && (
+                                <Badge variant="success" size="sm" className="mt-1">
+                                  Verified
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {account.is_active && (
+                              <Badge variant="success" size="sm">Active</Badge>
+                            )}
+                            <Button
+                              onClick={() => handleDeleteAccount(account.id)}
+                              variant="ghost"
+                              size="sm"
+                              icon={<FiTrash2 />}
+                              className="text-error-600 hover:text-error-700 hover:bg-error-50"
+                            >
+                              Disconnect
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-neutral-900">Upload Settings</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Input
+                        label="Default Privacy"
+                        type="select"
+                        value={settings.default_youtube_privacy}
+                        onChange={(e) => handleInputChange('default_youtube_privacy', e.target.value)}
+                      >
+                        <option value="private">Private</option>
+                        <option value="unlisted">Unlisted</option>
+                        <option value="public">Public</option>
+                      </Input>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Default Category"
+                        type="select"
+                        value={settings.default_youtube_category}
+                        onChange={(e) => handleInputChange('default_youtube_category', e.target.value)}
+                      >
+                        <option value="1">Film & Animation</option>
+                        <option value="2">Autos & Vehicles</option>
+                        <option value="10">Music</option>
+                        <option value="15">Pets & Animals</option>
+                        <option value="17">Sports</option>
+                        <option value="19">Travel & Events</option>
+                        <option value="20">Gaming</option>
+                        <option value="22">People & Blogs</option>
+                        <option value="23">Comedy</option>
+                        <option value="24">Entertainment</option>
+                        <option value="25">News & Politics</option>
+                        <option value="26">Howto & Style</option>
+                        <option value="27">Education</option>
+                        <option value="28">Science & Technology</option>
+                      </Input>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.make_shorts}
+                          onChange={(e) => handleInputChange('make_shorts', e.target.checked)}
+                          className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+                        />
+                        <span className="text-sm font-medium text-neutral-700">
+                          Upload as YouTube Shorts
+                        </span>
+                      </label>
+                      <p className="mt-1 ml-6 text-xs text-neutral-500">
+                        Clips will be formatted and tagged as YouTube Shorts
+                      </p>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
 
 export default Settings;
-

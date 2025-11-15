@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Job } from '../types';
 import toast from 'react-hot-toast';
+import { FiFilm, FiList, FiCheckCircle, FiXCircle, FiChevronRight, FiChevronDown, FiPlay, FiTrash2, FiRefreshCw, FiX } from 'react-icons/fi';
+import Card, { CardHeader, CardBody, CardFooter } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import MetricCard from '../components/ui/MetricCard';
+import StatusIndicator from '../components/ui/StatusIndicator';
+import ProgressBar from '../components/ui/ProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import EmptyState from '../components/ui/EmptyState';
 
 const Dashboard: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState('');
@@ -13,11 +21,10 @@ const Dashboard: React.FC = () => {
   const [jobLogs, setJobLogs] = useState<{ [key: number]: string }>({});
 
   useEffect(() => {
-    loadJobs(true); // Show loading spinner on first load
+    loadJobs(true);
     
-    // Auto-refresh jobs every 3 seconds
     const interval = setInterval(() => {
-      loadJobs(false); // Silent refresh in background
+      loadJobs(false);
     }, 3000);
     
     return () => clearInterval(interval);
@@ -72,7 +79,6 @@ const Dashboard: React.FC = () => {
 
   const handleRetryJob = async (jobId: number) => {
     try {
-      // Delete the old job and create a new one with the same URL
       const job = jobs.find(j => j.id === jobId);
       if (!job) return;
       
@@ -110,181 +116,231 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  return (
-    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div className="px-4 py-6 sm:px-0">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
+  // Calculate metrics
+  const totalClips = jobs.reduce((sum, job) => sum + (job.clips_created || 0), 0);
+  const activeJobs = jobs.filter(j => ['downloading', 'transcribing', 'analyzing', 'slicing'].includes(j.status)).length;
+  const completedJobs = jobs.filter(j => j.status === 'completed').length;
+  const successRate = jobs.length > 0 ? Math.round((completedJobs / jobs.length) * 100) : 0;
 
-        {/* URL Input */}
-        <div className="bg-white shadow sm:rounded-lg p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Create New Viral Clips
-          </h2>
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-900">Dashboard</h1>
+        <p className="text-neutral-600 mt-1">Monitor your video processing jobs and clips</p>
+      </div>
+
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Clips"
+          value={totalClips}
+          icon={<FiFilm className="w-6 h-6" />}
+          iconColor="primary"
+        />
+        <MetricCard
+          title="Active Jobs"
+          value={activeJobs}
+          icon={<FiPlay className="w-6 h-6" />}
+          iconColor="warning"
+        />
+        <MetricCard
+          title="Completed Jobs"
+          value={completedJobs}
+          icon={<FiCheckCircle className="w-6 h-6" />}
+          iconColor="success"
+        />
+        <MetricCard
+          title="Success Rate"
+          value={`${successRate}%`}
+          icon={<FiList className="w-6 h-6" />}
+          iconColor="info"
+        />
+      </div>
+
+      {/* Create New Job Card */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-neutral-900">Create New Viral Clips</h2>
+        </CardHeader>
+        <CardBody>
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                required
-              />
-              <button
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  required
+                />
+              </div>
+              <Button
                 type="submit"
                 disabled={isLoading}
-                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center"
+                loading={isLoading}
+                variant="primary"
+                size="md"
               >
-                {isLoading ? <LoadingSpinner size="sm" /> : 'Process Video'}
-              </button>
+                Process Video
+              </Button>
             </div>
           </form>
+        </CardBody>
+      </Card>
+
+      {/* Recent Jobs Section */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-neutral-900">Recent Jobs</h2>
+          <button className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium">
+            View All
+            <FiChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Recent Jobs */}
-        <div className="bg-white shadow sm:rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Recent Jobs
-          </h2>
-          {isLoadingJobs ? (
+        {isLoadingJobs ? (
+          <div className="flex justify-center py-12">
             <LoadingSpinner />
-          ) : jobs.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              No jobs yet. Create one above!
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {jobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">
-                        {job.video_title || job.video_url}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Status:{' '}
-                        <span
-                          className={`font-medium ${
-                            job.status === 'completed'
-                              ? 'text-green-600'
-                              : job.status === 'failed'
-                              ? 'text-red-600'
-                              : 'text-yellow-600'
-                          }`}
-                        >
-                          {job.status}
-                        </span>
-                      </p>
-                      {job.progress > 0 && job.status !== 'completed' && (
-                        <div className="mt-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-primary-600 h-2 rounded-full transition-all"
-                              style={{ width: `${job.progress}%` }}
-                            />
+          </div>
+        ) : jobs.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<FiList className="w-full h-full" />}
+              title="No jobs yet"
+              description="Create your first job by pasting a YouTube URL above"
+            />
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {jobs.map((job) => (
+              <Card key={job.id} hover>
+                <CardBody>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-neutral-900 truncate">
+                            {job.video_title || job.video_url}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-2">
+                            <StatusIndicator status={job.status} />
+                            <span className="text-sm text-neutral-500">
+                              {new Date(job.created_at).toLocaleString()}
+                            </span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {job.progress}% - {job.current_step}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-neutral-900">
+                            {job.clips_created || 0} clips
                           </p>
                         </div>
+                      </div>
+
+                      {job.progress > 0 && job.status !== 'completed' && (
+                        <div className="mt-4">
+                          <ProgressBar
+                            value={job.progress}
+                            variant={
+                              job.status === 'failed' ? 'error' :
+                              ['downloading', 'transcribing', 'analyzing', 'slicing'].includes(job.status) ? 'primary' :
+                              'warning'
+                            }
+                            label={job.current_step}
+                            showLabel
+                          />
+                        </div>
                       )}
+
                       {job.error_message && (
-                        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded">
+                        <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-lg">
                           <div className="flex items-start gap-2">
-                            <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
+                            <FiXCircle className="w-5 h-5 text-error-600 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                              <p className="text-sm text-red-800 font-medium">Error:</p>
-                              <p className="text-sm text-red-600 mt-1 whitespace-pre-wrap break-words">
+                              <p className="text-sm font-medium text-error-800">Error</p>
+                              <p className="text-sm text-error-600 mt-1 whitespace-pre-wrap break-words">
                                 {job.error_message}
                               </p>
                             </div>
                           </div>
                         </div>
                       )}
+
                       {job.status === 'transcribing' && job.current_step?.includes('Loading Whisper') && (
-                        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="mt-4 p-3 bg-warning-50 border border-warning-200 rounded-lg">
                           <div className="flex items-start gap-2">
-                            <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-warning-600 border-t-transparent mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                              <p className="text-sm text-yellow-800 font-medium">Loading AI Model...</p>
-                              <p className="text-xs text-yellow-600 mt-1">
+                              <p className="text-sm font-medium text-warning-800">Loading AI Model...</p>
+                              <p className="text-xs text-warning-600 mt-1">
                                 This may take 1-2 minutes on first use. The Whisper model is being loaded into memory.
                               </p>
                             </div>
                           </div>
                         </div>
                       )}
+
                       {expandedJobId === job.id && jobLogs[job.id] && (
-                        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
-                          <p className="text-xs font-medium text-gray-700 mb-2">Job Details:</p>
-                          <pre className="text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                        <div className="mt-4 p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
+                          <p className="text-xs font-medium text-neutral-700 mb-2">Job Details:</p>
+                          <pre className="text-xs text-neutral-600 overflow-x-auto whitespace-pre-wrap break-words font-mono">
                             {jobLogs[job.id]}
                           </pre>
-                          <p className="text-xs text-gray-500 mt-2">
-                            For full logs, run: <code className="bg-gray-200 px-1 rounded">docker-compose logs backend | grep "Job {job.id}"</code>
-                          </p>
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-2 ml-4">
-                      <div className="text-right">
-                        <span className="text-sm font-medium text-gray-900">
-                          {job.clips_created || 0} clips
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(job.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewLogs(job.id)}
-                          className="text-xs text-gray-600 hover:text-gray-800 font-medium"
-                          title="View job details"
+                  </div>
+                </CardBody>
+                <CardFooter>
+                  <div className="flex items-center justify-between">
+                    <Button
+                      onClick={() => handleViewLogs(job.id)}
+                      variant="ghost"
+                      size="sm"
+                      icon={expandedJobId === job.id ? <FiChevronDown /> : <FiChevronRight />}
+                    >
+                      {expandedJobId === job.id ? 'Hide Details' : 'View Details'}
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      {job.status === 'failed' && (
+                        <Button
+                          onClick={() => handleRetryJob(job.id)}
+                          variant="outline"
+                          size="sm"
+                          icon={<FiRefreshCw />}
                         >
-                          {expandedJobId === job.id ? 'Hide' : 'Details'}
-                        </button>
-                        {job.status === 'failed' && (
-                          <button
-                            onClick={() => handleRetryJob(job.id)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Retry
-                          </button>
-                        )}
-                        {['downloading', 'transcribing', 'analyzing', 'slicing'].includes(job.status) && (
-                          <button
-                            onClick={() => handleCancelJob(job.id)}
-                            className="text-xs text-orange-600 hover:text-orange-800 font-medium"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteJob(job.id)}
-                          className="text-xs text-red-600 hover:text-red-800 font-medium"
+                          Retry
+                        </Button>
+                      )}
+                      {['downloading', 'transcribing', 'analyzing', 'slicing'].includes(job.status) && (
+                        <Button
+                          onClick={() => handleCancelJob(job.id)}
+                          variant="outline"
+                          size="sm"
+                          icon={<FiX />}
                         >
-                          Delete
-                        </button>
-                      </div>
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => handleDeleteJob(job.id)}
+                        variant="ghost"
+                        size="sm"
+                        icon={<FiTrash2 />}
+                        className="text-error-600 hover:text-error-700 hover:bg-error-50"
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default Dashboard;
-

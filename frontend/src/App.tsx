@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Navigation from './components/Navigation';
+import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -16,62 +16,69 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Navigation />
-          <Toaster position="top-right" />
+        <Toaster position="top-right" />
+        
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            
-            {/* Protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jobs"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobs"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <Jobs />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/clips"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clips"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <Clips />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/youtube/callback"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/youtube/callback"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <YouTubeCallback />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Default redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </div>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </Router>
     </AuthProvider>
   );
