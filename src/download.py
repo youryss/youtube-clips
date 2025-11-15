@@ -11,6 +11,13 @@ import yt_dlp
 from . import config as cli_config
 
 
+class ReadOnlyCookieJar(yt_dlp.cookies.MozillaCookieJar):
+    """Cookie jar that doesn't save to prevent read-only file system errors"""
+    def save(self, filename=None, ignore_discard=False, ignore_expires=False):
+        """Override save to do nothing - file is read-only"""
+        pass  # Don't save cookies, file is read-only
+
+
 def _get_ytdlp_base_opts() -> Dict:
     """
     Get base yt-dlp options with cookie support if configured
@@ -62,9 +69,9 @@ def _get_ytdlp_base_opts() -> Dict:
             
             if cookie_file:
                 opts['cookiefile'] = cookie_file
-                # Disable cookie saving to prevent read-only file system errors
-                # The file is mounted read-only, so we can't save updates anyway
-                opts['no_cookies'] = False  # We want to use cookies
+                # Prevent yt-dlp from trying to save cookies (file is read-only)
+                # We'll use a custom cookiejar that doesn't save on close
+                opts['cookiesfrombrowser'] = None  # Ensure we're not using browser cookies
                 # Verify file exists if it's a real path
                 if Path(cookie_file).exists():
                     file_size = Path(cookie_file).stat().st_size
@@ -168,8 +175,15 @@ def download_video(
     # We'll catch the error if it tries
     
     try:
-        # Create yt-dlp instance and suppress cookie save errors
+        # Create yt-dlp instance
         ydl = yt_dlp.YoutubeDL(ydl_opts)
+        # Replace cookie jar with read-only version to prevent save attempts
+        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
+            original_jar = ydl.cookiejar
+            ydl.cookiejar = ReadOnlyCookieJar()
+            # Copy cookies from original jar
+            for cookie in original_jar:
+                ydl.cookiejar.set_cookie(cookie)
         try:
             # Extract info first
             info = ydl.extract_info(url, download=False)
@@ -220,7 +234,7 @@ def download_video(
                 'cached': False
             }
         finally:
-            # Suppress read-only file system error when closing (yt-dlp tries to save cookies)
+            # Close yt-dlp (cookie saving is prevented by ReadOnlyCookieJar)
             try:
                 ydl.close()
             except OSError as e:
@@ -255,6 +269,12 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
         })
         
         ydl = yt_dlp.YoutubeDL(ydl_opts)
+        # Replace cookie jar with read-only version
+        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
+            original_jar = ydl.cookiejar
+            ydl.cookiejar = ReadOnlyCookieJar()
+            for cookie in original_jar:
+                ydl.cookiejar.set_cookie(cookie)
         try:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', '')
@@ -267,7 +287,7 @@ def check_video_exists(url: str, output_dir: str) -> Optional[str]:
             
             return None
         finally:
-            # Suppress read-only file system error when closing
+            # Close yt-dlp (cookie saving is prevented)
             try:
                 ydl.close()
             except OSError as e:
@@ -305,6 +325,12 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     
     try:
         ydl = yt_dlp.YoutubeDL(ydl_opts)
+        # Replace cookie jar with read-only version
+        if hasattr(ydl, 'cookiejar') and ydl.cookiejar:
+            original_jar = ydl.cookiejar
+            ydl.cookiejar = ReadOnlyCookieJar()
+            for cookie in original_jar:
+                ydl.cookiejar.set_cookie(cookie)
         try:
             info = ydl.extract_info(url, download=False)
             return {
@@ -317,7 +343,7 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
                 'view_count': info.get('view_count', 0),
             }
         finally:
-            # Suppress read-only file system error when closing
+            # Close yt-dlp (cookie saving is prevented)
             try:
                 ydl.close()
             except OSError as e:
