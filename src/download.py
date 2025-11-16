@@ -217,8 +217,8 @@ def download_video(
                 percent = (d['downloaded_bytes'] / d['total_bytes_estimate']) * 100
                 progress_callback(percent)
     
-    ydl_opts = _get_ytdlp_base_opts()
-    ydl_opts.update({
+    # Base options for download
+    base_opts = {
         'format': format_str,
         'outtmpl': output_template,
         'merge_output_format': 'mp4',
@@ -229,7 +229,6 @@ def download_video(
             'key': 'FFmpegVideoConvertor',
             'preferedformat': 'mp4',
         }],
-        # Add user agent to appear more like a browser
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
         'extractor_args': {
@@ -237,80 +236,152 @@ def download_video(
                 'player_client': ['android', 'web'],
             }
         },
-        # Fallback format if requested format isn't available
         'format_sort': ['res', 'ext:mp4:m4a', 'codec:h264', 'acodec:aac'],
-    })
-    # Prevent yt-dlp from trying to save cookies (file is read-only)
-    # We'll catch the error if it tries
+    }
     
-    try:
-        # Create yt-dlp instance
-        ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Disable cookie saving to prevent read-only file system errors
-        _disable_cookie_saving(ydl)
-        try:
-            # Extract info first
-            info = ydl.extract_info(url, download=False)
-            
-            # Check if video already exists
-            if filename:
-                expected_path = output_dir / f"{filename}.mp4"
+    # Try multiple strategies (without cookies first, then with cookies)
+    strategies = []
+    
+    # Strategy 1: Without cookies (more reliable when cookies cause issues)
+    strategies.append({**base_opts})
+    
+    # Strategy 2: With cookies if configured
+    if cli_config.YT_DLP_COOKIES:
+        cookies_value = cli_config.YT_DLP_COOKIES.strip()
+        if cookies_value and not cookies_value.lower() in ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']:
+            cookie_path = Path(cookies_value)
+            cookie_file = None
+            if cookie_path.is_absolute() and cookie_path.exists():
+                cookie_file = str(cookie_path)
+            elif cookie_path.exists():
+                cookie_file = str(cookie_path)
             else:
-                sanitized_title = info['title'].replace('/', '_').replace('\\', '_')
-                expected_path = output_dir / f"{sanitized_title}.mp4"
+                cookie_file = cookies_value
             
-            if expected_path.exists():
-                print(f"Video already exists: {expected_path.name}")
+            if cookie_file:
+                opts_with_cookies = {**base_opts, 'cookiefile': cookie_file}
+                strategies.append(opts_with_cookies)
+    
+    # Try each strategy
+    last_error = None
+    for i, ydl_opts in enumerate(strategies):
+        try:
+            # Create yt-dlp instance
+            ydl = yt_dlp.YoutubeDL(ydl_opts)
+            # Disable cookie saving to prevent read-only file system errors
+            _disable_cookie_saving(ydl)
+            try:
+                # Extract info first
+                info = ydl.extract_info(url, download=False)
+                
+                if not info or not info.get('title'):
+                    raise Exception("Failed to extract video info")
+                
+                # Check if video already exists
+                if filename:
+                    expected_path = output_dir / f"{filename}.mp4"
+                else:
+                    sanitized_title = info['title'].replace('/', '_').replace('\\', '_')
+                    expected_path = output_dir / f"{sanitized_title}.mp4"
+                
+                if expected_path.exists():
+                    print(f"Video already exists: {expected_path.name}")
+                    return {
+                        'path': str(expected_path),
+                        'title': info.get('title', 'Unknown'),
+                        'duration': info.get('duration', 0),
+                        'resolution': f"{info.get('height', 0)}p",
+                        'format': 'mp4',
+                        'cached': True
+                    }
+                
+                # Download video
+                print(f"Downloading: {info['title']}")
+                ydl.download([url])
+                
+                # Find the downloaded file
+                if expected_path.exists():
+                    video_path = expected_path
+                else:
+                    # Fallback: find most recent video file
+                    video_files = sorted(
+                        output_dir.glob('*.mp4'),
+                        key=lambda p: p.stat().st_mtime,
+                        reverse=True
+                    )
+                    if video_files:
+                        video_path = video_files[0]
+                    else:
+                        raise Exception("Downloaded file not found")
+                
                 return {
-                    'path': str(expected_path),
+                    'path': str(video_path),
                     'title': info.get('title', 'Unknown'),
                     'duration': info.get('duration', 0),
                     'resolution': f"{info.get('height', 0)}p",
                     'format': 'mp4',
-                    'cached': True
+                    'cached': False
                 }
+            finally:
+                # Close yt-dlp (cookie saving is prevented)
+                try:
+                    ydl.close()
+                except OSError as e:
+                    if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
+                        pass  # Expected error, ignore
+                    else:
+                        pass  # Ignore close errors
+                        
+        except Exception as e:
+            error_msg = str(e)
+            last_error = e
             
-            # Download video
-            print(f"Downloading: {info['title']}")
-            ydl.download([url])
-            
-            # Find the downloaded file
-            if expected_path.exists():
-                video_path = expected_path
-            else:
-                # Fallback: find most recent video file
-                video_files = sorted(
-                    output_dir.glob('*.mp4'),
-                    key=lambda p: p.stat().st_mtime,
-                    reverse=True
-                )
-                if video_files:
-                    video_path = video_files[0]
+            # If it's a format error or "Only images" error, try next strategy
+            if 'Requested format is not available' in error_msg or 'Only images are available' in error_msg:
+                if i < len(strategies) - 1:
+                    continue  # Try next strategy
                 else:
-                    return None
+                    # Last strategy failed, try with more flexible format
+                    try:
+                        flexible_opts = {**ydl_opts, 'format': 'best/bestvideo+bestaudio/best'}
+                        ydl2 = yt_dlp.YoutubeDL(flexible_opts)
+                        _disable_cookie_saving(ydl2)
+                        try:
+                            info2 = ydl2.extract_info(url, download=False)
+                            if info2 and info2.get('title'):
+                                ydl2.download([url])
+                                # Find downloaded file
+                                if filename:
+                                    expected_path2 = output_dir / f"{filename}.mp4"
+                                else:
+                                    sanitized_title2 = info2['title'].replace('/', '_').replace('\\', '_')
+                                    expected_path2 = output_dir / f"{sanitized_title2}.mp4"
+                                
+                                if expected_path2.exists():
+                                    return {
+                                        'path': str(expected_path2),
+                                        'title': info2.get('title', 'Unknown'),
+                                        'duration': info2.get('duration', 0),
+                                        'resolution': f"{info2.get('height', 0)}p",
+                                        'format': 'mp4',
+                                        'cached': False
+                                    }
+                        finally:
+                            try:
+                                ydl2.close()
+                            except:
+                                pass
+                    except:
+                        pass
             
-            return {
-                'path': str(video_path),
-                'title': info.get('title', 'Unknown'),
-                'duration': info.get('duration', 0),
-                'resolution': f"{info.get('height', 0)}p",
-                'format': 'mp4',
-                'cached': False
-            }
-        finally:
-            # Close yt-dlp (cookie saving is prevented by ReadOnlyCookieJar)
-            try:
-                ydl.close()
-            except OSError as e:
-                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
-                    # Expected error - cookies file is read-only, ignore it
-                    pass
-                else:
-                    raise
+            # For other errors, continue to next strategy
+            if i < len(strategies) - 1:
+                continue
     
-    except Exception as e:
-        print(f"Error downloading video: {e}")
-        return None
+    # All strategies failed
+    if last_error:
+        print(f"Error downloading video: {last_error}")
+    return None
 
 
 def check_video_exists(url: str, output_dir: str) -> Optional[str]:
@@ -370,50 +441,151 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     Returns:
         Dictionary with video metadata
     """
-    ydl_opts = _get_ytdlp_base_opts()
-    ydl_opts.update({
+    # Base options for info extraction
+    base_opts = {
         'quiet': True,
         'no_warnings': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
-        # Use a very flexible format string that will always work
-        # This allows yt-dlp to extract info even if specific formats aren't available
-        'format': 'best/bestvideo+bestaudio/bestvideo/bestaudio/worst',
-        'skip_download': True,  # We're not downloading, just getting info
-        'extract_flat': False,  # We want full metadata
-        'noplaylist': True,  # Don't extract playlists
+        'skip_download': True,
+        'extract_flat': True,  # Use flat extraction to avoid format validation
+        'noplaylist': True,
+        'ignoreerrors': False,
+    }
+    
+    # Try multiple strategies
+    strategies = []
+    
+    # Strategy 1: Without cookies, using iOS client (most reliable)
+    strategies.append({
+        **base_opts,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web'],
+                'player_client': ['ios'],
             }
         },
     })
     
-    try:
-        ydl = yt_dlp.YoutubeDL(ydl_opts)
-        # Disable cookie saving to prevent read-only file system errors
-        _disable_cookie_saving(ydl)
-        try:
-            info = ydl.extract_info(url, download=False)
-            return {
-                'title': info.get('title', 'Unknown'),
-                'duration': info.get('duration', 0),
-                'url': url,
-                'id': info.get('id', ''),
-                'description': info.get('description', ''),
-                'uploader': info.get('uploader', ''),
-                'view_count': info.get('view_count', 0),
+    # Strategy 2: Without cookies, using Android client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android'],
             }
-        finally:
-            # Close yt-dlp (cookie saving is prevented)
+        },
+    })
+    
+    # Strategy 3: Without cookies, using web client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['web'],
+            }
+        },
+    })
+    
+    # Strategy 4: With cookies if configured (try last, as cookies may be expired)
+    if cli_config.YT_DLP_COOKIES:
+        cookies_value = cli_config.YT_DLP_COOKIES.strip()
+        if cookies_value and not cookies_value.lower() in ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']:
+            cookie_path = Path(cookies_value)
+            cookie_file = None
+            if cookie_path.is_absolute() and cookie_path.exists():
+                cookie_file = str(cookie_path)
+            elif cookie_path.exists():
+                cookie_file = str(cookie_path)
+            else:
+                cookie_file = cookies_value
+            
+            if cookie_file:
+                opts_with_cookies = {
+                    **base_opts,
+                    'cookiefile': cookie_file,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['web'],
+                        }
+                    },
+                }
+                strategies.append(opts_with_cookies)
+    
+    # Try each strategy
+    last_error = None
+    for i, ydl_opts in enumerate(strategies):
+        try:
+            # Explicitly ensure no format is set
+            ydl_opts.pop('format', None)
+            ydl_opts.pop('format_sort', None)
+            
+            ydl = yt_dlp.YoutubeDL(ydl_opts)
+            _disable_cookie_saving(ydl)
+            
             try:
-                ydl.close()
-            except OSError as e:
-                if 'Read-only file system' in str(e) or 'read-only' in str(e).lower():
-                    pass  # Expected error, ignore
+                info = ydl.extract_info(url, download=False)
+                
+                if info and info.get('title'):
+                    # Success! Return the info
+                    return {
+                        'title': info.get('title', 'Unknown'),
+                        'duration': info.get('duration', 0),
+                        'url': url,
+                        'id': info.get('id', ''),
+                        'description': info.get('description', ''),
+                        'uploader': info.get('uploader', ''),
+                        'view_count': info.get('view_count', 0),
+                    }
+            finally:
+                try:
+                    ydl.close()
+                except:
+                    pass
+                    
+        except Exception as e:
+            error_msg = str(e)
+            last_error = e
+            
+            # If it's a format error or bot detection, try next strategy
+            if 'Requested format is not available' in error_msg or 'Sign in to confirm' in error_msg:
+                if i < len(strategies) - 1:
+                    continue  # Try next strategy
                 else:
-                    raise
-    except Exception as e:
-        print(f"Error getting video info: {e}")
-        return None
+                    # Last strategy failed, try without extract_flat
+                    try:
+                        ydl_opts_no_flat = {**ydl_opts, 'extract_flat': False}
+                        ydl_opts_no_flat.pop('format', None)
+                        ydl_opts_no_flat.pop('format_sort', None)
+                        ydl2 = yt_dlp.YoutubeDL(ydl_opts_no_flat)
+                        _disable_cookie_saving(ydl2)
+                        try:
+                            info = ydl2.extract_info(url, download=False)
+                            if info and info.get('title'):
+                                return {
+                                    'title': info.get('title', 'Unknown'),
+                                    'duration': info.get('duration', 0),
+                                    'url': url,
+                                    'id': info.get('id', ''),
+                                    'description': info.get('description', ''),
+                                    'uploader': info.get('uploader', ''),
+                                    'view_count': info.get('view_count', 0),
+                                }
+                        finally:
+                            try:
+                                ydl2.close()
+                            except:
+                                pass
+                    except Exception as e2:
+                        # If this also fails, continue to next strategy or return None
+                        if i < len(strategies) - 1:
+                            continue
+            
+            # For other errors, continue to next strategy
+            if i < len(strategies) - 1:
+                continue
+    
+    # All strategies failed
+    if last_error:
+        print(f"Error getting video info: {last_error}")
+    return None
 

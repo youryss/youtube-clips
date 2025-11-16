@@ -36,23 +36,27 @@ def export_cookies_to_netscape(cookies: list, output_file: str):
         for cookie in cookies:
             domain = cookie.get('domain', '')
             
-            # Netscape format rules (from Python's http.cookiejar):
-            # - domain_specified flag: TRUE if domain was explicitly set (has leading dot)
-            # - domain_specified flag: FALSE if domain was not explicitly set (no leading dot)
-            # - BUT: The domain field should ALWAYS have a leading dot in Netscape format
-            # - The flag indicates whether the cookie was set with an explicit domain
+            # Netscape format rules:
+            # - If domain in file starts with '.', domain_flag MUST be TRUE
+            # - If domain in file does NOT start with '.', domain_flag MUST be FALSE
+            # - For maximum compatibility, we always use leading dot format
             
-            # Always add leading dot for Netscape format
-            if not domain.startswith('.'):
-                domain = '.' + domain
-            
-            # domain_specified flag: TRUE if cookie was set with explicit domain
-            # We check the original domain from the cookie to determine this
+            # Check if original domain had leading dot (explicit domain cookie)
             original_domain = cookie.get('domain', '')
-            if original_domain.startswith('.'):
-                domain_flag = 'TRUE'  # Explicit domain was set
+            had_leading_dot = original_domain.startswith('.')
+            
+            # Always add leading dot for Netscape format (for domain cookies)
+            # But keep host-only cookies without dot
+            if had_leading_dot:
+                # Explicit domain cookie - keep/add leading dot
+                if not domain.startswith('.'):
+                    domain = '.' + domain
+                domain_flag = 'TRUE'
             else:
-                domain_flag = 'FALSE'  # Domain was not explicitly set (host-only cookie)
+                # Host-only cookie - no leading dot
+                if domain.startswith('.'):
+                    domain = domain[1:]  # Remove leading dot
+                domain_flag = 'FALSE'
             
             path = cookie.get('path', '/')
             secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'
