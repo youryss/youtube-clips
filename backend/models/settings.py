@@ -84,3 +84,4 @@ class UserSettings(db.Model):
     def __repr__(self):
         return f'<UserSettings for user {self.user_id}>'
 
+

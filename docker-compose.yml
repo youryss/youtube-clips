@@ -37,6 +37,7 @@ services:
       - ./client_secrets.json:/app/client_secrets.json:ro
       - ./.env:/app/.env:ro
       - ./cookies.txt:/app/cookies.txt:ro
+      - ./src:/app/src:ro  # Mount src directory for live code updates
     depends_on:
       postgres:
         condition: service_healthy

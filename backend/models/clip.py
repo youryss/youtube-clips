@@ -70,3 +70,4 @@ class Clip(db.Model):
     def __repr__(self):
         return f'<Clip {self.id}: {self.filename}>'
 
+

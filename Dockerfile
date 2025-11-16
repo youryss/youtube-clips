@@ -39,3 +39,4 @@ WORKDIR /app/backend
 # Run migrations and start server
 CMD ["python", "app.py"]
 
+

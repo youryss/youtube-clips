@@ -48,3 +48,4 @@ class YouTubeAccount(db.Model):
     def __repr__(self):
         return f'<YouTubeAccount {self.channel_title}>'
 
+
