@@ -376,8 +376,9 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
         'no_warnings': True,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'referer': 'https://www.youtube.com/',
-        # Don't specify format for info extraction - we only need metadata
-        # yt-dlp will extract info without format selection
+        # For info extraction, we don't need a specific format
+        # Use worst quality as fallback - it's always available
+        'format': 'worst',  # Use worst quality for info extraction (always available)
         'skip_download': True,  # We're not downloading, just getting info
         'extract_flat': False,  # We want full metadata
         'extractor_args': {
