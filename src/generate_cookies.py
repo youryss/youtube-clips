@@ -35,21 +35,45 @@ def export_cookies_to_netscape(cookies: list, output_file: str):
         
         for cookie in cookies:
             domain = cookie.get('domain', '')
-            # Remove leading dot if present
-            if domain.startswith('.'):
-                domain_flag = 'TRUE'
-                domain = domain[1:]
+            
+            # Netscape format rules (from Python's http.cookiejar):
+            # - domain_specified flag: TRUE if domain was explicitly set (has leading dot)
+            # - domain_specified flag: FALSE if domain was not explicitly set (no leading dot)
+            # - BUT: The domain field should ALWAYS have a leading dot in Netscape format
+            # - The flag indicates whether the cookie was set with an explicit domain
+            
+            # Always add leading dot for Netscape format
+            if not domain.startswith('.'):
+                domain = '.' + domain
+            
+            # domain_specified flag: TRUE if cookie was set with explicit domain
+            # We check the original domain from the cookie to determine this
+            original_domain = cookie.get('domain', '')
+            if original_domain.startswith('.'):
+                domain_flag = 'TRUE'  # Explicit domain was set
             else:
-                domain_flag = 'FALSE'
+                domain_flag = 'FALSE'  # Domain was not explicitly set (host-only cookie)
             
             path = cookie.get('path', '/')
             secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'
-            expires = str(int(cookie.get('expires', -1))) if cookie.get('expires') else '0'
+            
+            # Handle expiration - convert to Unix timestamp if needed
+            expires = cookie.get('expires', -1)
+            if expires == -1 or expires is None:
+                expires_str = '0'  # Session cookie
+            else:
+                # If expires is already a timestamp, use it; otherwise convert
+                if expires > 1000000000:  # Likely already a Unix timestamp
+                    expires_str = str(int(expires))
+                else:
+                    # Might be in seconds since epoch, try converting
+                    expires_str = str(int(expires))
+            
             name = cookie.get('name', '')
             value = cookie.get('value', '')
             
-            # Netscape format: domain, flag, path, secure, expiration, name, value
-            f.write(f"{domain}\t{domain_flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
+            # Netscape format: domain, domain_specified_flag, path, secure_flag, expiration, name, value
+            f.write(f"{domain}\t{domain_flag}\t{path}\t{secure}\t{expires_str}\t{name}\t{value}\n")
 
 
 def handle_cookie_consent(page: Page) -> bool:
@@ -189,18 +213,55 @@ def login_to_youtube(page: Page, email: str, password: Optional[str] = None) -> 
             except Exception as e:
                 print(f"Password entry failed (may need manual entry): {e}")
         else:
-            print("\n⚠️  Password not provided. Please complete login manually in the browser window.")
-            print("Press Enter once you've logged in...")
-            input()
+            print("\n" + "=" * 60)
+            print("⚠️  Password not provided.")
+            print("=" * 60)
+            print("Please complete login manually in the browser window that opened.")
+            print("")
+            print("Steps:")
+            print("1. Enter your password in the browser")
+            print("2. Complete any 2FA if required")
+            print("3. Wait until you see YouTube homepage")
+            print("4. Come back here and press Enter")
+            print("")
+            print("The browser window will stay open - don't close it yet!")
+            print("=" * 60)
+            try:
+                input("Press Enter once you're logged in to YouTube...")
+            except (EOFError, KeyboardInterrupt):
+                print("\n⚠️  Input interrupted. Continuing anyway...")
+                print("Make sure you're logged in in the browser, then we'll extract cookies.")
+                import time
+                time.sleep(5)  # Give user time to complete login
         
         # Wait for YouTube to load (logged in)
+        # Give extra time for manual login completion
+        print("\nWaiting for you to complete login...")
+        import time
+        time.sleep(3)  # Give user time to complete any manual steps
+        
         try:
-            page.wait_for_url("https://www.youtube.com/**", timeout=30000)
-            print("✓ Successfully logged in to YouTube")
-            return True
+            # Check current URL - if still on accounts.google.com, wait more
+            current_url = page.url
+            if 'accounts.google.com' in current_url:
+                print("Still on login page, waiting for redirect to YouTube...")
+                page.wait_for_url("https://www.youtube.com/**", timeout=60000)  # 60 second timeout
+            else:
+                # Already on YouTube, just verify
+                page.wait_for_timeout(2000)
+            
+            # Final check - make sure we're on YouTube
+            if 'youtube.com' in page.url:
+                print("✓ Successfully logged in to YouTube")
+                return True
+            else:
+                print(f"⚠️  Unexpected URL: {page.url}")
+                print("Continuing anyway - make sure you're logged in...")
+                return True  # Continue anyway
         except Exception as e:
-            print(f"Login verification failed: {e}")
-            return False
+            print(f"⚠️  Login verification warning: {e}")
+            print("Continuing anyway - we'll try to extract cookies...")
+            return True  # Continue anyway - user might be logged in
             
     except Exception as e:
         print(f"Login process failed: {e}")
@@ -227,25 +288,61 @@ def generate_cookies(email: str, password: Optional[str], output_file: str, head
                 browser.close()
                 sys.exit(1)
             
+            # Wait a bit to ensure all cookies are set
+            print("\nWaiting for cookies to be fully set...")
+            page.wait_for_timeout(3000)
+            
+            # Navigate to YouTube to ensure we have all cookies
+            page.goto("https://www.youtube.com")
+            page.wait_for_timeout(2000)
+            
             # Get cookies
             print("\nExtracting cookies...")
             cookies = context.cookies()
             
-            # Filter for YouTube cookies
-            youtube_cookies = [
+            # Filter for YouTube and Google cookies (both are needed)
+            important_cookies = [
                 c for c in cookies 
-                if 'youtube.com' in c.get('domain', '') or '.youtube.com' in c.get('domain', '')
+                if 'youtube.com' in c.get('domain', '') or 
+                   '.youtube.com' in c.get('domain', '') or
+                   'google.com' in c.get('domain', '') or
+                   '.google.com' in c.get('domain', '')
             ]
             
-            if not youtube_cookies:
-                print("⚠️  Warning: No YouTube cookies found")
-            else:
-                print(f"✓ Found {len(youtube_cookies)} YouTube cookies")
+            # Check for critical authentication cookies
+            cookie_names = [c.get('name', '') for c in important_cookies]
+            critical_cookies = ['LOGIN_INFO', 'SAPISID', 'APISID', '__Secure-1PSID', '__Secure-3PSID', 'SID']
+            found_critical = [name for name in critical_cookies if any(name in c for c in cookie_names)]
             
-            # Export to Netscape format
+            if found_critical:
+                print(f"✓ Found critical auth cookies: {', '.join(found_critical)}")
+            else:
+                print("⚠️  Warning: No critical authentication cookies found!")
+                print("   Make sure you're fully logged in to YouTube")
+            
+            if not important_cookies:
+                print("⚠️  Warning: No YouTube/Google cookies found")
+            else:
+                print(f"✓ Found {len(important_cookies)} YouTube/Google cookies")
+            
+            # Export to Netscape format (use all cookies, not just YouTube ones)
             print(f"\nExporting cookies to {output_file}...")
             export_cookies_to_netscape(cookies, output_file)
             print(f"✓ Cookies exported successfully!")
+            
+            # Verify the exported file
+            if Path(output_file).exists():
+                file_size = Path(output_file).stat().st_size
+                print(f"✓ Cookie file size: {file_size} bytes")
+                
+                # Check if critical cookies are in the file
+                with open(output_file, 'r') as f:
+                    content = f.read()
+                    if 'LOGIN_INFO' in content or 'SAPISID' in content or '__Secure-1PSID' in content:
+                        print("✓ Authentication cookies found in exported file")
+                    else:
+                        print("⚠️  Warning: Authentication cookies may be missing")
+                        print("   Try logging out and back in, then regenerate cookies")
             
         finally:
             browser.close()
