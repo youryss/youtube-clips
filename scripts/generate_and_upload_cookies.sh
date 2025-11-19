@@ -31,7 +31,7 @@ if [ $? -eq 0 ] && [ -f cookies.txt ]; then
     echo "=========================================="
     
     # Fazer upload
-    ./upload_cookies.sh
+    ./scripts/upload_cookies.sh
     
     if [ $? -eq 0 ]; then
         echo ""

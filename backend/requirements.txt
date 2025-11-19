@@ -25,4 +25,15 @@ google-auth-httplib2>=0.1.1
 python-dotenv>=1.0.0
 requests>=2.31.0
 
+# Google API
+google-api-python-client>=2.0.0
+
+# AI/ML
+openai>=1.0.0
+faster-whisper>=1.0.0
+tqdm>=4.65.0
+
+# YouTube Downloader (with JavaScript runtime support)
+yt-dlp[default]>=2025.11.12
+
 

@@ -441,17 +441,32 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     Returns:
         Dictionary with video metadata
     """
+    # Rotate user agents to avoid detection
+    import random
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    ]
+    
     # Base options for info extraction
     base_opts = {
         'quiet': True,
         'no_warnings': True,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user_agent': random.choice(user_agents),  # Rotate user agents
         'referer': 'https://www.youtube.com/',
         'skip_download': True,
         'extract_flat': True,  # Use flat extraction to avoid format validation
         'noplaylist': True,
         'ignoreerrors': False,
     }
+    
+    # Add proxy support if configured
+    proxy = os.getenv('YT_DLP_PROXY')
+    if proxy:
+        base_opts['proxy'] = proxy
     
     # Try multiple strategies
     strategies = []
@@ -476,7 +491,17 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
         },
     })
     
-    # Strategy 3: Without cookies, using web client
+    # Strategy 3: Without cookies, using mweb client (mobile web)
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['mweb'],
+            }
+        },
+    })
+    
+    # Strategy 4: Without cookies, using web client
     strategies.append({
         **base_opts,
         'extractor_args': {
@@ -486,7 +511,17 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
         },
     })
     
-    # Strategy 4: With cookies if configured (try last, as cookies may be expired)
+    # Strategy 5: Without cookies, using TV embedded client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['tv_embedded'],
+            }
+        },
+    })
+    
+    # Strategy 6: With cookies if configured (try last, as cookies may be expired)
     if cli_config.YT_DLP_COOKIES:
         cookies_value = cli_config.YT_DLP_COOKIES.strip()
         if cookies_value and not cookies_value.lower() in ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']:

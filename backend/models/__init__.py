@@ -18,3 +18,5 @@ from .settings import UserSettings
 __all__ = ['db', 'bcrypt', 'User', 'YouTubeAccount', 'Job', 'Clip', 'UserSettings']
 
 
+
+

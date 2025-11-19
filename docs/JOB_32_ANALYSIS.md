@@ -51,7 +51,7 @@ O YouTube está bloqueando todas as tentativas:
 ### 1. Regenerar Cookies Frescos (Prioridade Alta)
 ```bash
 python3 src/generate_cookies.py --email youtubioviral@gmail.com --output cookies.txt
-./upload_cookies.sh
+./scripts/upload_cookies.sh
 ```
 
 ### 2. Verificar se o IP está bloqueado

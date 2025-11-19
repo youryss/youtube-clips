@@ -38,10 +38,24 @@ services:
       - ./.env:/app/.env:ro
       - ./cookies.txt:/app/cookies.txt:ro
       - ./src:/app/src:ro  # Mount src directory for live code updates
+      - ./test:/app/test:ro  # Mount test directory
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+
+  cookie-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile.cookie-refresh
+    container_name: viral_clipper_cookie_refresh
+    environment:
+      - EMAIL=${COOKIE_EMAIL:-youtubioviral@gmail.com}
+    volumes:
+      - ./cookies.txt:/app/cookies.txt:rw
+      - ./src/generate_cookies.py:/app/generate_cookies.py:ro
+    restart: "no"  # Only run when needed, not always
+    # Network is needed to access YouTube
 
   frontend:
     build:

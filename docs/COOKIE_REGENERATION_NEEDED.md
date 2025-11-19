@@ -25,7 +25,7 @@ Os cookies precisam ser regenerados usando o script `src/generate_cookies.py`.
 
 3. **Upload dos cookies para o servidor:**
    ```bash
-   ./upload_cookies.sh
+   ./scripts/upload_cookies.sh
    ```
 
 4. **Reiniciar o backend:**

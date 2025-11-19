@@ -85,3 +85,5 @@ class UserSettings(db.Model):
         return f'<UserSettings for user {self.user_id}>'
 
 
+
+

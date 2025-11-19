@@ -125,7 +125,7 @@ echo "Testing cookies..."
 echo "=========================================="
 
 # Test cookies on server
-ssh "$SERVER_USER@$SERVER_IP" "cd $SERVER_PATH && docker-compose exec -T backend python3 /app/src/test_cookies.py"
+ssh "$SERVER_USER@$SERVER_IP" "cd $SERVER_PATH && docker-compose exec -T backend python3 /app/test/test_cookies.py"
 
 echo ""
 echo "=========================================="

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script to verify cookie patches work correctly
-Run this in the container to test: docker-compose exec backend python3 /app/src/test_cookies.py
+Run this in the container to test: docker-compose exec backend python3 /app/test/test_cookies.py
 """
 
 import sys
