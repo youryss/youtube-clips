@@ -239,13 +239,10 @@ def download_video(
         'format_sort': ['res', 'ext:mp4:m4a', 'codec:h264', 'acodec:aac'],
     }
     
-    # Try multiple strategies (without cookies first, then with cookies)
+    # Try multiple strategies (with cookies FIRST - YouTube now requires cookies)
     strategies = []
     
-    # Strategy 1: Without cookies (more reliable when cookies cause issues)
-    strategies.append({**base_opts})
-    
-    # Strategy 2: With cookies if configured
+    # Strategy 1: With cookies if configured (PRIORITY - YouTube now requires cookies)
     if cli_config.YT_DLP_COOKIES:
         cookies_value = cli_config.YT_DLP_COOKIES.strip()
         if cookies_value and not cookies_value.lower() in ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']:
@@ -256,11 +253,16 @@ def download_video(
             elif cookie_path.exists():
                 cookie_file = str(cookie_path)
             else:
+                # Try as container path (e.g., /app/cookies.txt)
                 cookie_file = cookies_value
             
             if cookie_file:
                 opts_with_cookies = {**base_opts, 'cookiefile': cookie_file}
                 strategies.append(opts_with_cookies)
+                print(f"[download] Using cookies from: {cookie_file}")
+    
+    # Strategy 2: Without cookies (fallback only)
+    strategies.append({**base_opts})
     
     # Try each strategy
     last_error = None
@@ -441,6 +443,15 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     Returns:
         Dictionary with video metadata
     """
+    # Log cookie configuration for debugging
+    if cli_config.YT_DLP_COOKIES:
+        cookies_value = cli_config.YT_DLP_COOKIES.strip()
+        cookie_path = Path(cookies_value)
+        cookie_exists = cookie_path.exists() if cookie_path.is_absolute() or cookie_path.exists() else False
+        print(f"[get_video_info] Cookie config: {cookies_value}, exists: {cookie_exists}")
+    else:
+        print("[get_video_info] WARNING: YT_DLP_COOKIES not set - YouTube may require cookies")
+    
     # Rotate user agents to avoid detection
     import random
     user_agents = [
@@ -471,57 +482,7 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
     # Try multiple strategies
     strategies = []
     
-    # Strategy 1: Without cookies, using iOS client (most reliable)
-    strategies.append({
-        **base_opts,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['ios'],
-            }
-        },
-    })
-    
-    # Strategy 2: Without cookies, using Android client
-    strategies.append({
-        **base_opts,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android'],
-            }
-        },
-    })
-    
-    # Strategy 3: Without cookies, using mweb client (mobile web)
-    strategies.append({
-        **base_opts,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['mweb'],
-            }
-        },
-    })
-    
-    # Strategy 4: Without cookies, using web client
-    strategies.append({
-        **base_opts,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['web'],
-            }
-        },
-    })
-    
-    # Strategy 5: Without cookies, using TV embedded client
-    strategies.append({
-        **base_opts,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['tv_embedded'],
-            }
-        },
-    })
-    
-    # Strategy 6: With cookies if configured (try last, as cookies may be expired)
+    # Strategy 1: With cookies if configured (PRIORITY - YouTube now requires cookies)
     if cli_config.YT_DLP_COOKIES:
         cookies_value = cli_config.YT_DLP_COOKIES.strip()
         if cookies_value and not cookies_value.lower() in ['chrome', 'firefox', 'edge', 'opera', 'safari', 'vivaldi', 'brave']:
@@ -532,10 +493,12 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
             elif cookie_path.exists():
                 cookie_file = str(cookie_path)
             else:
+                # Try as container path (e.g., /app/cookies.txt)
                 cookie_file = cookies_value
             
             if cookie_file:
-                opts_with_cookies = {
+                # Try with web client first (most compatible with cookies)
+                opts_with_cookies_web = {
                     **base_opts,
                     'cookiefile': cookie_file,
                     'extractor_args': {
@@ -544,7 +507,70 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
                         }
                     },
                 }
-                strategies.append(opts_with_cookies)
+                strategies.append(opts_with_cookies_web)
+                
+                # Also try with Android client + cookies (sometimes more reliable)
+                opts_with_cookies_android = {
+                    **base_opts,
+                    'cookiefile': cookie_file,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android', 'web'],
+                        }
+                    },
+                }
+                strategies.append(opts_with_cookies_android)
+    
+    # Strategy 2-N: Fallback strategies without cookies (only if cookies not configured or all cookie strategies failed)
+    # Strategy 2: Without cookies, using iOS client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios'],
+            }
+        },
+    })
+    
+    # Strategy 3: Without cookies, using Android client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android'],
+            }
+        },
+    })
+    
+    # Strategy 4: Without cookies, using mweb client (mobile web)
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['mweb'],
+            }
+        },
+    })
+    
+    # Strategy 5: Without cookies, using web client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['web'],
+            }
+        },
+    })
+    
+    # Strategy 6: Without cookies, using TV embedded client
+    strategies.append({
+        **base_opts,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['tv_embedded'],
+            }
+        },
+    })
     
     # Try each strategy
     last_error = None
@@ -580,6 +606,11 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
         except Exception as e:
             error_msg = str(e)
             last_error = e
+            
+            # Log the error for debugging
+            strategy_num = i + 1
+            has_cookies = 'cookiefile' in ydl_opts
+            print(f"[get_video_info] Strategy {strategy_num} failed ({'with cookies' if has_cookies else 'without cookies'}): {error_msg[:200]}")
             
             # If it's a format error or bot detection, try next strategy
             if 'Requested format is not available' in error_msg or 'Sign in to confirm' in error_msg:
