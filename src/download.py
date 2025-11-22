@@ -497,10 +497,19 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
                 cookie_file = cookies_value
             
             if cookie_file:
+                # Verify cookie file exists
+                cookie_path_obj = Path(cookie_file)
+                if not cookie_path_obj.exists():
+                    print(f"[get_video_info] WARNING: Cookie file does not exist at: {cookie_file}")
+                else:
+                    print(f"[get_video_info] Using cookie file: {cookie_file} ({cookie_path_obj.stat().st_size} bytes)")
+                
                 # Try with web client first (most compatible with cookies)
+                # Don't use extract_flat with cookies - it may cause issues
                 opts_with_cookies_web = {
                     **base_opts,
                     'cookiefile': cookie_file,
+                    'extract_flat': False,  # Disable flat extraction when using cookies
                     'extractor_args': {
                         'youtube': {
                             'player_client': ['web'],
@@ -513,6 +522,7 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
                 opts_with_cookies_android = {
                     **base_opts,
                     'cookiefile': cookie_file,
+                    'extract_flat': False,  # Disable flat extraction when using cookies
                     'extractor_args': {
                         'youtube': {
                             'player_client': ['android', 'web'],
@@ -584,10 +594,17 @@ def get_video_info(url: str) -> Optional[Dict[str, any]]:
             _disable_cookie_saving(ydl)
             
             try:
+                # Log which strategy we're trying
+                strategy_num = i + 1
+                has_cookies = 'cookiefile' in ydl_opts
+                player_client = ydl_opts.get('extractor_args', {}).get('youtube', {}).get('player_client', ['default'])
+                print(f"[get_video_info] Trying strategy {strategy_num}: cookies={'yes' if has_cookies else 'no'}, client={player_client}")
+                
                 info = ydl.extract_info(url, download=False)
                 
                 if info and info.get('title'):
                     # Success! Return the info
+                    print(f"[get_video_info] Strategy {strategy_num} succeeded!")
                     return {
                         'title': info.get('title', 'Unknown'),
                         'duration': info.get('duration', 0),
