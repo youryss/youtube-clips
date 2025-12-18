@@ -2,6 +2,8 @@
 
 An AI-powered application that automatically identifies and creates viral-worthy clips from YouTube videos. The app uses AI to analyze videos, find the best moments, and generate short-form content ready for social media.
 
+<img width="1491" height="815" alt="Screenshot 2025-12-18 at 08 58 05" src="https://github.com/user-attachments/assets/d911cf63-f972-4e34-aa6a-07278febea1b" />
+
 ## What It Does
 
 - Downloads YouTube videos
