@@ -42,3 +42,47 @@ client_secrets.json
 youtube_token.json
 *.json.bak
 
+# Frontend (Next.js / Storybook)
+frontend/node_modules
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+# Frontend testing
+frontend/coverage
+
+# Next.js build artifacts
+frontend/.next/
+frontend/out/
+
+# Frontend production build
+frontend/build
+
+# Frontend misc
+frontend/.DS_Store
+frontend/*.pem
+
+# Frontend debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# Frontend env files (can opt-in for committing if needed)
+frontend/.env*
+
+# Vercel
+frontend/.vercel
+
+# TypeScript (frontend)
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Storybook (frontend)
+frontend/*storybook.log
+frontend/storybook-static
+

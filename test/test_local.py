@@ -6,10 +6,11 @@ Test script to check if get_video_info works locally
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+# Add backend to path
+backend_dir = Path(__file__).parent.parent / 'backend'
+sys.path.insert(0, str(backend_dir))
 
-from src.download import get_video_info
+from services.video_download_service import VideoDownloadService
 
 # Test with the same video that's failing on server
 test_url = "https://www.youtube.com/watch?v=FaoohSLIrt4"
@@ -18,7 +19,7 @@ print(f"Testing get_video_info with URL: {test_url}")
 print("=" * 60)
 
 try:
-    info = get_video_info(test_url)
+    info = VideoDownloadService.get_video_info(test_url)
     
     if info:
         print("✅ SUCCESS! Video info retrieved:")

@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
 """
 Video Processor Service
-Wraps existing CLI modules for video processing
+Processes video jobs using integrated backend services
 """
 
-import sys
-import os
 from pathlib import Path
 from datetime import datetime
 
-# Add parent directory to path to import from src/
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-
-from src import config as cli_config
-from src.download import download_video, get_video_info
-from src.transcribe import download_audio, transcribe_with_timestamps, sanitize_filename
-from src.analyzer import analyze_transcript
-from src.slicer import slice_video_batch
+from .video_download_service import VideoDownloadService
+from .transcription_service import TranscriptionService
+from .analyzer_service import AnalyzerService
+from .video_slicer_service import VideoSlicerService
+from .processing_config import TEMP_PATH, OUTPUT_PATH
 
 
 class VideoProcessor:
@@ -61,7 +56,7 @@ class VideoProcessor:
                 emit_log(socketio, self.job_id, 'Fetching video information...')
                 
                 # Get video info
-                video_info = get_video_info(job.video_url)
+                video_info = VideoDownloadService.get_video_info(job.video_url)
                 if not video_info:
                     raise Exception("Failed to get video information")
                 
@@ -69,7 +64,10 @@ class VideoProcessor:
                 job.video_duration = video_info.get('duration')
                 db.session.commit()
                 
-                sanitized_title = sanitize_filename(job.video_title)
+                sanitized_title = TranscriptionService.sanitize_filename(job.video_title)
+                # Use a job-specific prefix for intermediate files to avoid
+                # collisions between different jobs that might share titles.
+                job_prefix = f"job_{self.job_id}"
                 
                 # Download video
                 emit_progress(socketio, self.job_id, 20, 'Downloading video')
@@ -84,10 +82,9 @@ class VideoProcessor:
                     job.current_step = f'Downloading video ({int(percent)}%)'
                     db.session.commit()
                 
-                video_data = download_video(
+                video_data = VideoDownloadService.download_video(
                     url=job.video_url,
-                    output_dir=str(cli_config.TEMP_PATH),
-                    quality=cli_config.VIDEO_QUALITY,
+                    output_dir=str(TEMP_PATH),
                     filename=sanitized_title,
                     progress_callback=download_progress_callback
                 )
@@ -107,14 +104,29 @@ class VideoProcessor:
                 emit_progress(socketio, self.job_id, 40, 'Transcribing audio')
                 emit_log(socketio, self.job_id, 'Transcribing audio with Whisper AI...')
                 
-                audio_path = download_audio(
+                audio_path = TranscriptionService.download_audio(
                     url=job.video_url,
-                    output_path=str(cli_config.TEMP_PATH / f"{sanitized_title}_audio"),
+                    # Use a per-job audio path so we never accidentally reuse
+                    # audio from another job with the same video title
+                    output_path=str(TEMP_PATH / f"{job_prefix}_audio"),
                     audio_format="mp3"
                 )
                 
+                print(f"[Job {self.job_id}] Audio download result: {audio_path}", flush=True)
+                
                 if not audio_path:
                     raise Exception("Failed to download audio")
+                
+                # Verify audio file exists and is readable
+                audio_file = Path(audio_path)
+                if not audio_file.exists():
+                    raise Exception(f"Audio file does not exist: {audio_path}")
+                
+                audio_size = audio_file.stat().st_size
+                print(f"[Job {self.job_id}] Audio file exists: {audio_path}, size: {audio_size} bytes", flush=True)
+                
+                if audio_size == 0:
+                    raise Exception(f"Audio file is empty: {audio_path}")
                 
                 def transcribe_progress_callback(percent):
                     """Update progress during transcription"""
@@ -142,7 +154,10 @@ class VideoProcessor:
                         import traceback
                         traceback.print_exc()
                 
-                transcript_cache_path = cli_config.TEMP_PATH / f"{sanitized_title}_transcript.json"
+                # IMPORTANT: make transcript cache per-job so we don't reuse
+                # transcripts from a different video that happens to share the
+                # same (sanitized) title.
+                transcript_cache_path = TEMP_PATH / f"{job_prefix}_transcript.json"
                 
                 # Test callback before calling transcription
                 print(f"[Job {self.job_id}] Testing callback before transcription...")
@@ -154,16 +169,17 @@ class VideoProcessor:
                 db.session.commit()
                 emit_progress(socketio, self.job_id, 40, 'Loading Whisper model...')
                 
+                print(f"[Job {self.job_id}] About to call transcribe_with_timestamps with audio_path={audio_path}", flush=True)
+                print(f"[Job {self.job_id}] Cache path: {transcript_cache_path}", flush=True)
+                
                 try:
-                    transcript_segments = transcribe_with_timestamps(
+                    transcript_segments = TranscriptionService.transcribe_with_timestamps(
                         audio_path=audio_path,
-                        model_name=cli_config.WHISPER_MODEL,
-                        device=cli_config.WHISPER_DEVICE,
-                        compute_type=cli_config.WHISPER_COMPUTE_TYPE,
                         cache_path=str(transcript_cache_path),
-                        show_progress=False,
+                        show_progress=True,  # Changed to True for debugging
                         progress_callback=transcribe_progress_callback
                     )
+                    print(f"[Job {self.job_id}] transcribe_with_timestamps completed successfully", flush=True)
                 except Exception as transcribe_error:
                     error_msg = f"Transcription failed: {str(transcribe_error)}"
                     print(f"[Job {self.job_id}] {error_msg}")
@@ -193,7 +209,7 @@ class VideoProcessor:
                 emit_progress(socketio, self.job_id, 60, 'Analyzing for viral segments')
                 emit_log(socketio, self.job_id, 'Analyzing transcript with AI...')
                 
-                viral_segments = analyze_transcript(
+                viral_segments = AnalyzerService.analyze_transcript(
                     transcript_segments=transcript_segments,
                     verbose=False
                 )
@@ -219,8 +235,8 @@ class VideoProcessor:
                 emit_progress(socketio, self.job_id, 80, f'Creating {len(viral_segments)} clips')
                 emit_log(socketio, self.job_id, f'Creating {len(viral_segments)} video clips...')
                 
-                output_dir = cli_config.OUTPUT_PATH / sanitized_title
-                clip_results = slice_video_batch(
+                output_dir = OUTPUT_PATH / sanitized_title
+                clip_results = VideoSlicerService.slice_video_batch(
                     input_path=job.video_path,
                     segments=viral_segments,
                     output_dir=str(output_dir),

@@ -61,7 +61,6 @@ RUN playwright install-deps chromium || echo "Warning: Chromium deps installatio
 
 # Copy application code
 COPY backend/ /app/backend/
-COPY src/ /app/src/
 COPY criteria/ /app/criteria/
 
 # Create directories for data

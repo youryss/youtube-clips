@@ -1,78 +1,90 @@
-import React, { ReactNode } from 'react';
-import LoadingSpinner from '../LoadingSpinner';
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+        success: "bg-success text-success-foreground hover:bg-success/90",
+        warning: "bg-warning text-warning-foreground hover:bg-warning/90",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+        "icon-sm": "size-8",
+        "icon-lg": "size-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+export interface ButtonProps
+  extends React.ComponentProps<"button">,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
   loading?: boolean;
-  icon?: ReactNode;
-  iconPosition?: 'left' | 'right';
-  children?: ReactNode;
+  icon?: React.ReactNode;
+  iconPosition?: "left" | "right";
 }
 
-const Button: React.FC<ButtonProps> = ({
-  variant = 'primary',
-  size = 'md',
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
   loading = false,
   icon,
-  iconPosition = 'left',
+  iconPosition = "left",
   children,
-  className = '',
   disabled,
   ...props
-}) => {
-  const baseClasses = 'btn inline-flex items-center justify-center font-medium transition-all duration-base focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-  
-  const variantClasses = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-    secondary: 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200 focus:ring-neutral-500',
-    outline: 'border-2 border-neutral-300 text-neutral-700 hover:bg-neutral-50 focus:ring-neutral-500',
-    ghost: 'text-neutral-700 hover:bg-neutral-100 focus:ring-neutral-500',
-    danger: 'bg-error-600 text-white hover:bg-error-700 focus:ring-error-500',
-  };
-
-  const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm rounded-md',
-    md: 'px-4 py-2 text-base rounded-lg',
-    lg: 'px-6 py-3 text-lg rounded-lg',
-  };
-
-  const iconSizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
-  };
+}: ButtonProps) {
+  const Comp = asChild ? Slot : "button";
 
   return (
-    <button
-      className={`
-        ${baseClasses}
-        ${variantClasses[variant]}
-        ${sizeClasses[size]}
-        ${className}
-      `}
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
       disabled={disabled || loading}
       {...props}
     >
       {loading ? (
         <>
-          <LoadingSpinner size="sm" className="mr-2" />
-          {children || ''}
+          <Loader2 className="size-4 animate-spin" />
+          {children}
         </>
       ) : (
         <>
-          {icon && iconPosition === 'left' && (
-            <span className={children ? `mr-2 ${iconSizeClasses[size]}` : iconSizeClasses[size]}>{icon}</span>
-          )}
+          {icon && iconPosition === "left" && icon}
           {children}
-          {icon && iconPosition === 'right' && (
-            <span className={children ? `ml-2 ${iconSizeClasses[size]}` : iconSizeClasses[size]}>{icon}</span>
-          )}
+          {icon && iconPosition === "right" && icon}
         </>
       )}
-    </button>
+    </Comp>
   );
-};
+}
 
-export default Button;
-
+export { Button, buttonVariants };

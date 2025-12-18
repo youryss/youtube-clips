@@ -51,9 +51,8 @@ RUN playwright install-deps chromium
 
 WORKDIR /app
 
-# Copy cookie refresh script
-COPY src/generate_cookies.py /app/
-COPY src/auto_refresh_cookies_server.py /app/
+# Copy cookie refresh script (if these files exist elsewhere, update path)
+# Note: These scripts may need to be moved to a scripts directory
 
 # Set environment
 ENV PYTHONUNBUFFERED=1

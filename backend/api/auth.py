@@ -62,33 +62,64 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """Login user"""
-    data = request.get_json()
+    import time
+    import sys
+    print(f"[LOGIN] Request received at {time.time()}", flush=True)
+    sys.stdout.flush()
     
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'error': 'Email and password are required'}), 400
-    
-    email = data['email'].lower().strip()
-    password = data['password']
-    
-    # Find user
-    user = User.query.filter_by(email=email).first()
-    
-    if not user or not user.check_password(password):
-        return jsonify({'error': 'Invalid email or password'}), 401
-    
-    if not user.is_active:
-        return jsonify({'error': 'Account is disabled'}), 403
-    
-    # Generate tokens
-    access_token = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
-    
-    return jsonify({
-        'message': 'Login successful',
-        'user': user.to_dict(),
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }), 200
+    try:
+        data = request.get_json()
+        print(f"[LOGIN] Data received: email={'present' if data and data.get('email') else 'missing'}", flush=True)
+        sys.stdout.flush()
+        
+        if not data or not data.get('email') or not data.get('password'):
+            print("[LOGIN] Missing email or password", flush=True)
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        email = data['email'].lower().strip()
+        password = data['password']
+        print(f"[LOGIN] Processing login for: {email}", flush=True)
+        sys.stdout.flush()
+        
+        # Find user
+        user = User.query.filter_by(email=email).first()
+        print(f"[LOGIN] User query completed: {'found' if user else 'not found'}", flush=True)
+        sys.stdout.flush()
+        
+        if not user or not user.check_password(password):
+            print("[LOGIN] Invalid credentials", flush=True)
+            return jsonify({'error': 'Invalid email or password'}), 401
+        
+        if not user.is_active:
+            print("[LOGIN] Account disabled", flush=True)
+            return jsonify({'error': 'Account is disabled'}), 403
+        
+        print("[LOGIN] Generating tokens...", flush=True)
+        sys.stdout.flush()
+        # Generate tokens
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+        print("[LOGIN] Tokens generated", flush=True)
+        sys.stdout.flush()
+        
+        print("[LOGIN] Creating response...", flush=True)
+        sys.stdout.flush()
+        user_dict = user.to_dict()
+        print("[LOGIN] Response created, returning...", flush=True)
+        sys.stdout.flush()
+        
+        return jsonify({
+            'message': 'Login successful',
+            'user': user_dict,
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }), 200
+    except Exception as e:
+        print(f"[LOGIN] ERROR: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        sys.stdout.flush()
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @auth_bp.route('/refresh', methods=['POST'])

@@ -33,16 +33,24 @@ class User(db.Model):
         """Check if password is correct"""
         return bcrypt.check_password_hash(self.password_hash, password)
     
-    def to_dict(self):
+    def to_dict(self, include_accounts_count=False):
         """Convert to dictionary"""
-        return {
+        result = {
             'id': self.id,
             'email': self.email,
             'username': self.username,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'youtube_accounts_count': self.youtube_accounts.count()
         }
+        
+        # Only include accounts count if explicitly requested to avoid slow queries
+        if include_accounts_count:
+            try:
+                result['youtube_accounts_count'] = self.youtube_accounts.count()
+            except:
+                result['youtube_accounts_count'] = 0
+        
+        return result
     
     def __repr__(self):
         return f'<User {self.email}>'

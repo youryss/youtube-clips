@@ -1,45 +1,65 @@
-# Multi-stage build for React app
-FROM node:20-alpine as build
+# Multi-stage build for Next.js app with standalone output
+FROM node:20-alpine AS base
 
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Accept build arguments for environment variables
-ARG REACT_APP_API_URL=http://localhost:5001
-ARG REACT_APP_WS_URL=ws://localhost:5001
+# Copy package files
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-# Set environment variables for build
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
-ENV REACT_APP_WS_URL=$REACT_APP_WS_URL
-
-# Copy package files first for better caching
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --silent --legacy-peer-deps
-
-# Copy source code
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the app
+# Accept build arguments for environment variables
+ARG NEXT_PUBLIC_API_URL=http://localhost:5001
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:5001
+
+# Set environment variables for build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build the application
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
 
-# Copy built app to nginx
-COPY --from=build /app/build /usr/share/nginx/html
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Expose port
-EXPOSE 80
+# Copy built assets
+COPY --from=builder /app/public ./public
 
-# Health check (install wget for healthcheck)
-RUN apk add --no-cache wget
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
 
+# Automatically leverage output traces to reduce image size
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80 || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
 

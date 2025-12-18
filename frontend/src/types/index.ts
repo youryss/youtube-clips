@@ -12,7 +12,15 @@ export interface Job {
   video_url: string;
   video_title?: string;
   video_duration?: number;
-  status: 'pending' | 'downloading' | 'transcribing' | 'analyzing' | 'slicing' | 'completed' | 'failed' | 'cancelled';
+  status:
+    | "pending"
+    | "downloading"
+    | "transcribing"
+    | "analyzing"
+    | "slicing"
+    | "completed"
+    | "failed"
+    | "cancelled";
   progress: number;
   current_step?: string;
   clips_created: number;
@@ -96,4 +104,3 @@ export interface AuthResponse {
   access_token: string;
   refresh_token?: string;
 }
-

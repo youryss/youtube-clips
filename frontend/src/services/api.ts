@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from "axios";
-import {
+import type {
   AuthResponse,
   LoginCredentials,
   RegisterData,
@@ -8,9 +8,9 @@ import {
   Clip,
   Settings,
   YouTubeAccount,
-} from "../types";
+} from "@/types";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 class APIClient {
   private client: AxiosInstance;
@@ -21,13 +21,16 @@ class APIClient {
       headers: {
         "Content-Type": "application/json",
       },
+      timeout: 30000, // 30 second timeout to prevent hanging
     });
 
     // Add auth token to requests
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem("access_token");
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("access_token");
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
       return config;
     });
@@ -38,8 +41,10 @@ class APIClient {
       async (error) => {
         if (error.response?.status === 401) {
           // Token expired, clear and redirect to login
-          localStorage.removeItem("access_token");
-          window.location.href = "/login";
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("access_token");
+            window.location.href = "/login";
+          }
         }
         return Promise.reject(error);
       }

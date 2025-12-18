@@ -1,101 +1,69 @@
-import React, { ReactNode } from 'react';
+import * as React from "react";
 
-interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+
+export interface InputProps extends React.ComponentProps<"input"> {
   label?: string;
   error?: string;
   helperText?: string;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-  variant?: 'default' | 'search';
-  type?: 'text' | 'email' | 'password' | 'number' | 'url' | 'select';
-  children?: ReactNode; // For select options
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
-const Input: React.FC<InputProps> = ({
+function Input({
+  className,
+  type,
   label,
   error,
   helperText,
   leftIcon,
   rightIcon,
-  variant = 'default',
-  className = '',
+  id,
   ...props
-}) => {
-  const baseClasses = 'w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors duration-base';
-  
-  const variantClasses = {
-    default: 'border-neutral-300 focus:ring-primary-500 focus:border-primary-500',
-    search: 'border-neutral-300 bg-neutral-50 focus:ring-primary-500 focus:border-primary-500',
-  };
-
-  const errorClasses = error
-    ? 'border-error-500 focus:ring-error-500 focus:border-error-500'
-    : '';
-
-  const inputClasses = `
-    ${baseClasses}
-    ${variantClasses[variant]}
-    ${errorClasses}
-    ${leftIcon ? 'pl-10' : ''}
-    ${rightIcon ? 'pr-10' : ''}
-    ${className}
-  `;
-
-  // Handle select element
-  if (variant === 'default' && props.type === 'select') {
-    const { type, children, ...selectProps } = props;
-    return (
-      <div className="w-full">
-        {label && (
-          <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-            {label}
-          </label>
-        )}
-        <select
-          className={inputClasses}
-          {...(selectProps as any)}
-        >
-          {children}
-        </select>
-        {error && (
-          <p className="mt-1.5 text-sm text-error-600">{error}</p>
-        )}
-        {helperText && !error && (
-          <p className="mt-1.5 text-sm text-neutral-500">{helperText}</p>
-        )}
-      </div>
-    );
-  }
+}: InputProps) {
+  const inputId = id || React.useId();
 
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+        <Label htmlFor={inputId} className="mb-1.5 block">
           {label}
-        </label>
+        </Label>
       )}
       <div className="relative">
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
+          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
             {leftIcon}
           </div>
         )}
-        <input className={inputClasses} {...props} />
+        <input
+          id={inputId}
+          type={type}
+          data-slot="input"
+          aria-invalid={!!error}
+          className={cn(
+            "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+            "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+            leftIcon && "pl-10",
+            rightIcon && "pr-10",
+            className
+          )}
+          {...props}
+        />
         {rightIcon && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
             {rightIcon}
           </div>
         )}
       </div>
-      {error && (
-        <p className="mt-1.5 text-sm text-error-600">{error}</p>
-      )}
+      {error && <p className="mt-1.5 text-sm text-destructive">{error}</p>}
       {helperText && !error && (
-        <p className="mt-1.5 text-sm text-neutral-500">{helperText}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">{helperText}</p>
       )}
     </div>
   );
-};
+}
 
-export default Input;
-
+export { Input };

@@ -1,137 +1,136 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import {
-  FiHome,
-  FiList,
-  FiFilm,
-  FiSettings,
-  FiLogOut,
-  FiX,
-} from 'react-icons/fi';
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, ListTodo, Film, Settings, LogOut, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/auth-context";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
-  const location = useLocation();
+const navigation = [
+  { name: "Dashboard", href: "/dashboard", icon: Home },
+  { name: "Jobs", href: "/jobs", icon: ListTodo },
+  { name: "Clips", href: "/clips", icon: Film },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
+
+export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+  const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: FiHome },
-    { name: 'Jobs', href: '/jobs', icon: FiList },
-    { name: 'Clips', href: '/clips', icon: FiFilm },
-    { name: 'Settings', href: '/settings', icon: FiSettings },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => pathname === path;
 
   return (
     <>
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={onToggle}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`
-          fixed top-0 left-0 h-full bg-white shadow-lg z-50
-          transform transition-transform duration-300 ease-in-out
-          lg:translate-x-0 lg:static lg:z-auto
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          w-64
-        `}
+        className={cn(
+          "fixed left-0 top-0 z-50 h-full w-64 transform bg-sidebar shadow-lg transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex h-full flex-col">
           {/* Header with logo and close button */}
-          <div className="flex items-center justify-between p-6 border-b border-neutral-200">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <FiFilm className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between border-b border-sidebar-border p-6">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
+                <Film className="size-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-neutral-900">Viral Clipper</span>
+              <span className="text-xl font-bold text-sidebar-foreground">
+                Viral Clipper
+              </span>
             </Link>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
               onClick={onToggle}
-              className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             >
-              <FiX className="w-5 h-5 text-neutral-600" />
-            </button>
+              <X className="size-5" />
+            </Button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 overflow-y-auto scrollbar-thin">
-            <ul className="space-y-2">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <li key={item.name}>
-                    <Link
-                      to={item.href}
-                      className={`
-                        flex items-center gap-3 px-4 py-3 rounded-lg
-                        transition-colors duration-base
-                        ${
+          <ScrollArea className="flex-1 px-4 py-6">
+            <nav>
+              <ul className="space-y-2">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-4 py-3 transition-colors",
                           active
-                            ? 'bg-primary-50 text-primary-600 font-medium'
-                            : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
-                        }
-                      `}
-                      onClick={() => {
-                        // Close sidebar on mobile when navigating
-                        if (window.innerWidth < 1024) {
-                          onToggle();
-                        }
-                      }}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span>{item.name}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+                            ? "bg-sidebar-accent font-medium text-sidebar-primary"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        )}
+                        onClick={() => {
+                          if (window.innerWidth < 1024) {
+                            onToggle();
+                          }
+                        }}
+                      >
+                        <Icon className="size-5" />
+                        <span>{item.name}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </ScrollArea>
 
           {/* User section */}
-          <div className="p-4 border-t border-neutral-200">
+          <div className="border-t border-sidebar-border p-4">
             {user && (
-              <div className="mb-4 p-4 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {user.username?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-neutral-900 truncate">
+              <div className="mb-4 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-10">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user.username?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {user.username}
                     </p>
-                    <p className="text-xs text-neutral-600 truncate">
+                    <p className="truncate text-xs text-muted-foreground">
                       {user.email}
                     </p>
                   </div>
                 </div>
               </div>
             )}
-            <button
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
               onClick={logout}
-              className="flex items-center gap-3 w-full px-4 py-3 text-neutral-600 hover:bg-neutral-50 rounded-lg transition-colors duration-base"
             >
-              <FiLogOut className="w-5 h-5" />
-              <span>Log Out</span>
-            </button>
+              <LogOut className="size-5" />
+              Log Out
+            </Button>
           </div>
         </div>
       </aside>
     </>
   );
-};
-
-export default Sidebar;
-
+}

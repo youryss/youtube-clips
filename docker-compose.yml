@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clipper"]
+      test: ["CMD-SHELL", "pg_isready -U clipper -d viral_clipper"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CORS_ORIGINS=http://164.90.193.41:3001,http://localhost:3001
+      - CORS_ORIGINS=http://164.90.193.41:3001,http://localhost:3001,http://localhost:3000
       - YT_DLP_COOKIES=${YT_DLP_COOKIES:-/app/cookies.txt}
     ports:
       - "5001:5000"
@@ -37,44 +37,53 @@ services:
       - ./client_secrets.json:/app/client_secrets.json:ro
       - ./.env:/app/.env:ro
       - ./cookies.txt:/app/cookies.txt:ro
-      - ./src:/app/src:ro  # Mount src directory for live code updates
-      - ./test:/app/test:ro  # Mount test directory
+      - ./test:/app/test:ro # Mount test directory
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
 
-  cookie-refresh:
-    build:
-      context: .
-      dockerfile: Dockerfile.cookie-refresh
-    container_name: viral_clipper_cookie_refresh
-    environment:
-      - EMAIL=${COOKIE_EMAIL:-youtubioviral@gmail.com}
-    volumes:
-      - ./cookies.txt:/app/cookies.txt:rw
-      - ./src/generate_cookies.py:/app/generate_cookies.py:ro
-    restart: "no"  # Only run when needed, not always
-    # Network is needed to access YouTube
+  # cookie-refresh service is disabled - script file missing
+  # To enable: create auto_refresh_cookies_server.py and uncomment below
+  # cookie-refresh:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.cookie-refresh
+  #   container_name: viral_clipper_cookie_refresh
+  #   environment:
+  #     - EMAIL=${COOKIE_EMAIL:-youtubioviral@gmail.com}
+  #   volumes:
+  #     - ./cookies.txt:/app/cookies.txt:rw
+  #   restart: "no" # Only run when needed, not always
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://164.90.193.41:5001}
-        REACT_APP_WS_URL: ${REACT_APP_WS_URL:-ws://164.90.193.41:5001}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5001}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:5001}
     container_name: viral_clipper_frontend
     ports:
-      - "3001:80"
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
     depends_on:
       backend:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
       interval: 30s
       timeout: 3s
-      start_period: 5s
+      start_period: 10s
       retries: 3
     restart: unless-stopped
 

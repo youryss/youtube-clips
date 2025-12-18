@@ -1,6 +1,6 @@
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client";
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'http://localhost:5001';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:5001";
 
 class WebSocketClient {
   private socket: Socket | null = null;
@@ -13,21 +13,21 @@ class WebSocketClient {
     }
 
     this.socket = io(WS_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
       reconnectionAttempts: this.maxReconnectAttempts,
     });
 
-    this.socket.on('connect', () => {
-      console.log('WebSocket connected');
+    this.socket.on("connect", () => {
+      console.log("WebSocket connected");
       this.reconnectAttempts = 0;
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
+    this.socket.on("disconnect", () => {
+      console.log("WebSocket disconnected");
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
+    this.socket.on("connect_error", (error) => {
+      console.error("WebSocket connection error:", error);
       this.reconnectAttempts++;
     });
 
@@ -43,43 +43,49 @@ class WebSocketClient {
 
   joinJobRoom(jobId: number): void {
     if (this.socket) {
-      this.socket.emit('join', { room: `job_${jobId}` });
+      this.socket.emit("join", { room: `job_${jobId}` });
     }
   }
 
   leaveJobRoom(jobId: number): void {
     if (this.socket) {
-      this.socket.emit('leave', { room: `job_${jobId}` });
+      this.socket.emit("leave", { room: `job_${jobId}` });
     }
   }
 
-  onJobUpdate(callback: (data: any) => void): void {
+  onJobUpdate(callback: (data: unknown) => void): void {
     if (this.socket) {
-      this.socket.on('job_update', callback);
+      this.socket.on("job_update", callback);
     }
   }
 
-  onProgress(callback: (data: { job_id: number; progress: number; step: string }) => void): void {
+  onProgress(
+    callback: (data: { job_id: number; progress: number; step: string }) => void
+  ): void {
     if (this.socket) {
-      this.socket.on('progress', callback);
+      this.socket.on("progress", callback);
     }
   }
 
-  onLog(callback: (data: { job_id: number; message: string; level: string }) => void): void {
+  onLog(
+    callback: (data: { job_id: number; message: string; level: string }) => void
+  ): void {
     if (this.socket) {
-      this.socket.on('log', callback);
+      this.socket.on("log", callback);
     }
   }
 
   onError(callback: (data: { job_id: number; error: string }) => void): void {
     if (this.socket) {
-      this.socket.on('error', callback);
+      this.socket.on("error", callback);
     }
   }
 
-  onComplete(callback: (data: { job_id: number; clips_created: number }) => void): void {
+  onComplete(
+    callback: (data: { job_id: number; clips_created: number }) => void
+  ): void {
     if (this.socket) {
-      this.socket.on('complete', callback);
+      this.socket.on("complete", callback);
     }
   }
 
@@ -92,4 +98,3 @@ class WebSocketClient {
 
 export const websocket = new WebSocketClient();
 export default websocket;
-
