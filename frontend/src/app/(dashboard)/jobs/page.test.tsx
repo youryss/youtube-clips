@@ -202,6 +202,5 @@ describe("JobsPage", () => {
     screen.getByText("Refresh").click();
     expect(loadJobs).toHaveBeenCalledWith(true);
   });
-}
-
+});
 
