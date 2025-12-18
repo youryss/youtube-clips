@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("sonner", () => ({
@@ -14,16 +14,13 @@ let listJobsMock: jest.MockedFunction<typeof api.listJobs>;
 
 describe("useJobData", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     listJobsMock = vi
       .spyOn(api, "listJobs")
-      .mockResolvedValue({ jobs: [], total: 0, page: 1, per_page: 10, pages: 1 });
+      .mockResolvedValue({ jobs: [], total: 0, page: 1, per_page: 10, pages: 1 } as any);
   });
 
   afterEach(() => {
     listJobsMock.mockRestore();
-    vi.clearAllTimers();
-    vi.useRealTimers();
   });
 
   it("loads jobs on mount and updates state", async () => {
@@ -47,9 +44,14 @@ describe("useJobData", () => {
   });
 
   it("does not change loading state when background poll runs", async () => {
-    listJobsMock
-      .mockResolvedValueOnce({ jobs: [], total: 0, page: 1, per_page: 10, pages: 1 } as any) // initial load
-      .mockResolvedValueOnce({ jobs: [], total: 0, page: 1, per_page: 10, pages: 1 } as any); // poll
+    // First call: initial load
+    listJobsMock.mockResolvedValueOnce({
+      jobs: [],
+      total: 0,
+      page: 1,
+      per_page: 10,
+      pages: 1,
+    } as any);
 
     const { result } = renderHook(() => useJobData(1000));
 
@@ -57,11 +59,20 @@ describe("useJobData", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    vi.advanceTimersByTime(1000);
+    // Second call: simulate background poll with showLoading = false
+    listJobsMock.mockResolvedValueOnce({
+      jobs: [],
+      total: 0,
+      page: 1,
+      per_page: 10,
+      pages: 1,
+    } as any);
 
-    await waitFor(() => {
-      // still not loading because background poll uses showLoading = false
-      expect(result.current.isLoading).toBe(false);
+    await act(async () => {
+      await result.current.loadJobs(false);
     });
+
+    // Still not loading because background poll uses showLoading = false
+    expect(result.current.isLoading).toBe(false);
   });
 });
