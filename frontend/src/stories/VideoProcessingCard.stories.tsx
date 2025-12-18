@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { VideoProcessingCard } from "@/components/settings/video-processing-card"
-import type { Settings } from "@/types"
+import type { Meta, StoryObj } from "@storybook/react";
+import { VideoProcessingCard } from "@/components/settings/video-processing-card";
+import type { Settings } from "@/types";
 
 const baseSettings: Settings = {
   whisper_model: "base",
@@ -20,21 +20,19 @@ const baseSettings: Settings = {
   default_youtube_privacy: "private",
   default_youtube_category: "22",
   make_shorts: true,
-}
+};
 
 const meta: Meta<typeof VideoProcessingCard> = {
   title: "Settings/VideoProcessingCard",
   component: VideoProcessingCard,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
     settings: baseSettings,
     updateSetting: () => {},
   },
-}
-
-
+};

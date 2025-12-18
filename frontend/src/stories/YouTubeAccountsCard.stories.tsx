@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { YouTubeAccountsCard } from "@/components/settings/youtube-accounts-card"
-import type { YouTubeAccount } from "@/types"
+import type { Meta, StoryObj } from "@storybook/react";
+import { YouTubeAccountsCard } from "@/components/settings/youtube-accounts-card";
+import type { YouTubeAccount } from "@/types";
 
 const sampleAccounts: YouTubeAccount[] = [
   {
@@ -22,15 +22,15 @@ const sampleAccounts: YouTubeAccount[] = [
     is_verified: false,
     created_at: new Date().toISOString(),
   },
-]
+];
 
 const meta: Meta<typeof YouTubeAccountsCard> = {
   title: "Settings/YouTubeAccountsCard",
   component: YouTubeAccountsCard,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const WithAccounts: Story = {
   args: {
@@ -39,7 +39,7 @@ export const WithAccounts: Story = {
     onConnect: () => {},
     onDeleteAccount: () => {},
   },
-}
+};
 
 export const EmptyState: Story = {
   args: {
@@ -48,6 +48,4 @@ export const EmptyState: Story = {
     onConnect: () => {},
     onDeleteAccount: () => {},
   },
-}
-
-
+};

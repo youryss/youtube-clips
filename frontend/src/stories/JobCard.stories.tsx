@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { JobCard } from "@/components/jobs/job-card"
-import type { Job } from "@/types"
+import type { Meta, StoryObj } from "@storybook/react";
+import { JobCard } from "@/components/jobs/job-card";
+import type { Job } from "@/types";
 
 const baseJob: Job = {
   id: 1,
@@ -12,15 +12,15 @@ const baseJob: Job = {
   current_step: "Transcribing audio",
   clips_created: 0,
   created_at: new Date().toISOString(),
-}
+};
 
 const meta: Meta<typeof JobCard> = {
   title: "Jobs/JobCard",
   component: JobCard,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const InProgress: Story = {
   args: {
@@ -32,7 +32,7 @@ export const InProgress: Story = {
     onCancel: () => {},
     onDelete: () => {},
   },
-}
+};
 
 export const WithLogsExpanded: Story = {
   args: {
@@ -40,6 +40,4 @@ export const WithLogsExpanded: Story = {
     isExpanded: true,
     logs: "Step 1: Downloading video...\nStep 2: Transcribing audio...",
   },
-}
-
-
+};

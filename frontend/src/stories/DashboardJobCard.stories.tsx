@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { DashboardJobCard } from "@/components/dashboard/dashboard-job-card"
-import type { Job } from "@/types"
+import type { Meta, StoryObj } from "@storybook/react";
+import { DashboardJobCard } from "@/components/dashboard/dashboard-job-card";
+import type { Job } from "@/types";
 
 const baseJob: Job = {
   id: 1,
@@ -14,15 +14,15 @@ const baseJob: Job = {
   created_at: new Date().toISOString(),
   thumbnail_url: "https://placehold.co/320x180",
   has_thumbnail: true,
-}
+};
 
 const meta: Meta<typeof DashboardJobCard> = {
   title: "Dashboard/DashboardJobCard",
   component: DashboardJobCard,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const InProgress: Story = {
   args: {
@@ -34,7 +34,7 @@ export const InProgress: Story = {
     onCancel: () => {},
     onDelete: () => {},
   },
-}
+};
 
 export const FailedWithError: Story = {
   args: {
@@ -48,6 +48,4 @@ export const FailedWithError: Story = {
     expanded: true,
     logs: "Error: Network timeout while contacting transcription service.",
   },
-}
-
-
+};

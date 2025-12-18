@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { ProtectedRoute } from "@/components/protected-route"
+import type { Meta, StoryObj } from "@storybook/react";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const meta: Meta<typeof ProtectedRoute> = {
   title: "Routing/ProtectedRoute",
@@ -12,17 +12,16 @@ const meta: Meta<typeof ProtectedRoute> = {
       },
     },
   },
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const Placeholder: Story = {
   render: () => (
     <div className="p-4 text-sm text-muted-foreground">
-      ProtectedRoute is intended for use in the app shell and is not rendered directly in Storybook.
+      ProtectedRoute is intended for use in the app shell and is not rendered
+      directly in Storybook.
     </div>
   ),
-}
-
-
+};

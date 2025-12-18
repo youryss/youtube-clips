@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { JobsPagination } from "@/components/jobs/jobs-pagination"
+import type { Meta, StoryObj } from "@storybook/react";
+import { JobsPagination } from "@/components/jobs/jobs-pagination";
 
 const meta: Meta<typeof JobsPagination> = {
   title: "Jobs/JobsPagination",
   component: JobsPagination,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const MiddlePage: Story = {
   args: {
@@ -18,7 +18,7 @@ export const MiddlePage: Story = {
     totalItems: 50,
     onPageChange: () => {},
   },
-}
+};
 
 export const LastPage: Story = {
   args: {
@@ -29,6 +29,4 @@ export const LastPage: Story = {
     totalItems: 50,
     onPageChange: () => {},
   },
-}
-
-
+};

@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { DashboardRecentJobs } from "@/components/dashboard/dashboard-recent-jobs"
-import type { Job } from "@/types"
+import type { Meta, StoryObj } from "@storybook/react";
+import { DashboardRecentJobs } from "@/components/dashboard/dashboard-recent-jobs";
+import type { Job } from "@/types";
 
 const jobs: Job[] = [
   {
@@ -25,15 +25,15 @@ const jobs: Job[] = [
     clips_created: 0,
     created_at: new Date().toISOString(),
   },
-]
+];
 
 const meta: Meta<typeof DashboardRecentJobs> = {
   title: "Dashboard/DashboardRecentJobs",
   component: DashboardRecentJobs,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const WithJobs: Story = {
   args: {
@@ -47,7 +47,7 @@ export const WithJobs: Story = {
     onDeleteJob: () => {},
     onViewAll: () => {},
   },
-}
+};
 
 export const Loading: Story = {
   args: {
@@ -55,7 +55,7 @@ export const Loading: Story = {
     jobs: [],
     isLoadingJobs: true,
   },
-}
+};
 
 export const Empty: Story = {
   args: {
@@ -63,6 +63,4 @@ export const Empty: Story = {
     jobs: [],
     isLoadingJobs: false,
   },
-}
-
-
+};

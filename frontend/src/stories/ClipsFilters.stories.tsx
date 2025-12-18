@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { ClipsFilters } from "@/components/clips/clips-filters"
+import type { Meta, StoryObj } from "@storybook/react";
+import { ClipsFilters } from "@/components/clips/clips-filters";
 
 const meta: Meta<typeof ClipsFilters> = {
   title: "Clips/ClipsFilters",
   component: ClipsFilters,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const GridView: Story = {
   args: {
@@ -16,7 +16,7 @@ export const GridView: Story = {
     onSearchChange: () => {},
     onViewModeChange: () => {},
   },
-}
+};
 
 export const ListViewWithSearch: Story = {
   args: {
@@ -25,6 +25,4 @@ export const ListViewWithSearch: Story = {
     onSearchChange: () => {},
     onViewModeChange: () => {},
   },
-}
-
-
+};

@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { Header } from "@/components/layout/header"
+import type { Meta, StoryObj } from "@storybook/react";
+import { Header } from "@/components/layout/header";
 
 const meta: Meta<typeof Header> = {
   title: "Layout/Header",
@@ -12,17 +12,16 @@ const meta: Meta<typeof Header> = {
       },
     },
   },
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const Placeholder: Story = {
   render: () => (
     <div className="p-4 text-sm text-muted-foreground">
-      Header is part of the dashboard layout and requires app providers; configure decorators to render it as in the app.
+      Header is part of the dashboard layout and requires app providers;
+      configure decorators to render it as in the app.
     </div>
   ),
-}
-
-
+};

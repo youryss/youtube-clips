@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react"
-import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics"
+import type { Meta, StoryObj } from "@storybook/react";
+import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
 
 const meta: Meta<typeof DashboardMetrics> = {
   title: "Dashboard/DashboardMetrics",
   component: DashboardMetrics,
-}
+};
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
@@ -16,6 +16,4 @@ export const Default: Story = {
     completedJobs: 42,
     successRate: 92,
   },
-}
-
-
+};
