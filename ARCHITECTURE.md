@@ -427,3 +427,4 @@ This gives the user immediate visual feedback while long‑running transcription
   - `frontend/src/app/(dashboard)` for the main UI.
 - **Architectural changes**: when you change flows (e.g., new criteria, new queue mechanism, or a different transcription engine), update this file so the doc stays in sync with reality.
 
+
