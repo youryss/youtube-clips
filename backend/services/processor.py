@@ -26,6 +26,38 @@ class VideoProcessor:
         """Cancel processing"""
         self.cancelled = True
     
+    def _safe_commit_job(self, job, db, Job):
+        """Safely commit job updates, handling StaleDataError"""
+        try:
+            db.session.commit()
+        except Exception as e:
+            # If commit fails (e.g., StaleDataError), refresh and retry once
+            error_str = str(e)
+            if 'StaleDataError' in error_str or 'expected to update' in error_str:
+                db.session.rollback()
+                # Refresh job from database
+                refreshed_job = Job.query.get(self.job_id)
+                if not refreshed_job:
+                    print(f"Job {self.job_id} was deleted during processing")
+                    return None
+                # Copy updated attributes to refreshed job
+                for attr in ['status', 'progress', 'current_step', 'video_title', 
+                            'video_duration', 'video_path', 'transcript_path', 
+                            'clips_created', 'error_message', 'started_at', 'completed_at']:
+                    if hasattr(job, attr) and getattr(job, attr) is not None:
+                        setattr(refreshed_job, attr, getattr(job, attr))
+                try:
+                    db.session.commit()
+                    return refreshed_job
+                except Exception as retry_error:
+                    print(f"Retry commit also failed for job {self.job_id}: {retry_error}")
+                    db.session.rollback()
+                    return None
+            else:
+                # Re-raise non-StaleDataError exceptions
+                raise
+        return job
+    
     def process(self):
         """Process a video job"""
         from models import db, Job, Clip
@@ -49,7 +81,9 @@ class VideoProcessor:
                 job.progress = 10
                 job.current_step = 'Getting video information'
                 job.started_at = datetime.utcnow()
-                db.session.commit()
+                job = self._safe_commit_job(job, db, Job)
+                if not job:
+                    return
                 print(f"Job {self.job_id} status updated to 'downloading'")
                 
                 emit_progress(socketio, self.job_id, 10, 'Getting video information')
@@ -62,14 +96,16 @@ class VideoProcessor:
                 
                 job.video_title = video_info['title']
                 job.video_duration = video_info.get('duration')
-                db.session.commit()
+                job = self._safe_commit_job(job, db, Job)
+                if not job:
+                    return
                 
                 sanitized_title = TranscriptionService.sanitize_filename(job.video_title)
                 # Use a job-specific prefix for intermediate files to avoid
                 # collisions between different jobs that might share titles.
                 job_prefix = f"job_{self.job_id}"
                 
-                # Download video
+                # Download video - use job-specific filename to avoid collisions
                 emit_progress(socketio, self.job_id, 20, 'Downloading video')
                 emit_log(socketio, self.job_id, f'Downloading: {job.video_title[:60]}...')
                 
@@ -82,10 +118,12 @@ class VideoProcessor:
                     job.current_step = f'Downloading video ({int(percent)}%)'
                     db.session.commit()
                 
+                # Use job-specific filename to prevent collisions between concurrent jobs
+                video_filename = f"{job_prefix}_{sanitized_title}"
                 video_data = VideoDownloadService.download_video(
                     url=job.video_url,
                     output_dir=str(TEMP_PATH),
-                    filename=sanitized_title,
+                    filename=video_filename,
                     progress_callback=download_progress_callback
                 )
                 
@@ -93,7 +131,9 @@ class VideoProcessor:
                     raise Exception("Failed to download video")
                 
                 job.video_path = video_data['path']
-                db.session.commit()
+                job = self._safe_commit_job(job, db, Job)
+                if not job:
+                    return
                 
                 # Transcribe
                 job.status = 'transcribing'
@@ -236,6 +276,20 @@ class VideoProcessor:
                 emit_log(socketio, self.job_id, f'Creating {len(viral_segments)} video clips...')
                 
                 output_dir = OUTPUT_PATH / sanitized_title
+                
+                # Validate video file exists before slicing
+                if not job.video_path:
+                    raise Exception("Video path not set in job")
+                
+                video_file = Path(job.video_path)
+                if not video_file.exists():
+                    raise Exception(f"Video file does not exist: {job.video_path}")
+                
+                # Verify the video file matches our expected filename pattern
+                expected_video_path = TEMP_PATH / f"{video_filename}.mp4"
+                if str(video_file) != str(expected_video_path) and not video_file.name.startswith(f"job_{self.job_id}_"):
+                    print(f"WARNING: Video path {job.video_path} does not match expected pattern job_{self.job_id}_*")
+                
                 clip_results = VideoSlicerService.slice_video_batch(
                     input_path=job.video_path,
                     segments=viral_segments,
@@ -246,33 +300,80 @@ class VideoProcessor:
                 
                 # Save clips to database
                 clips_created = 0
-                for idx, result in enumerate(clip_results):
-                    if result['success']:
-                        segment = result['segment']
-                        
-                        clip = Clip(
-                            job_id=job.id,
-                            filename=Path(result['clip_path']).name,
-                            file_path=result['clip_path'],
-                            metadata_path=result.get('metadata_path'),
-                            title=segment.get('suggested_title'),
-                            duration=segment.get('duration_seconds'),
-                            start_time=segment.get('start_seconds'),
-                            end_time=segment.get('end_seconds'),
-                            viral_score=segment.get('viral_score'),
-                            criteria_matched=segment.get('criteria_matched'),
-                            reasoning=segment.get('reasoning'),
-                            file_size=Path(result['clip_path']).stat().st_size
-                        )
-                        
-                        db.session.add(clip)
-                        clips_created += 1
+                
+                try:
+                    for idx, result in enumerate(clip_results):
+                        if result['success']:
+                            segment = result['segment']
+                            
+                            # Get file size safely
+                            clip_path_obj = Path(result['clip_path'])
+                            file_size = 0
+                            if clip_path_obj.exists():
+                                try:
+                                    file_size = clip_path_obj.stat().st_size
+                                except Exception as size_error:
+                                    print(f"Warning: Could not get file size for {result['clip_path']}: {size_error}")
+                                    file_size = 0
+                            else:
+                                print(f"Warning: Clip file does not exist: {result['clip_path']}")
+                            
+                            clip = Clip(
+                                job_id=job.id,
+                                filename=clip_path_obj.name,
+                                file_path=result['clip_path'],
+                                thumbnail_path=result.get('thumbnail_path'),
+                                metadata_path=result.get('metadata_path'),
+                                title=segment.get('suggested_title'),
+                                duration=segment.get('duration_seconds'),
+                                start_time=segment.get('start_seconds'),
+                                end_time=segment.get('end_seconds'),
+                                viral_score=segment.get('viral_score'),
+                                criteria_matched=segment.get('criteria_matched'),
+                                reasoning=segment.get('reasoning'),
+                                file_size=file_size
+                            )
+                            
+                            try:
+                                db.session.add(clip)
+                                clips_created += 1
+                            except Exception as clip_error:
+                                print(f"Error adding clip to database: {clip_error}")
+                                import traceback
+                                traceback.print_exc()
+                                # Log the error but continue with other clips
+                                continue
+                except Exception as loop_error:
+                    print(f"Error in clip saving loop: {loop_error}")
+                    import traceback
+                    traceback.print_exc()
+                    raise
+                
+                # Commit all clips at once
+                try:
+                    db.session.commit()
+                except Exception as commit_error:
+                    print(f"Error committing clips to database: {commit_error}")
+                    import traceback
+                    traceback.print_exc()
+                    db.session.rollback()
+                    raise
+                
+                # Refresh job from database before updating
+                job = Job.query.get(self.job_id)
+                if not job:
+                    print(f"Job {self.job_id} not found after clips commit")
+                    return
                 
                 job.clips_created = clips_created
                 job.status = 'completed'
                 job.completed_at = datetime.utcnow()
                 job.progress = 100
-                db.session.commit()
+                
+                job = self._safe_commit_job(job, db, Job)
+                if not job:
+                    print(f"Warning: Job {self.job_id} commit failed, but clips were created")
+                    return
                 
                 emit_progress(socketio, self.job_id, 100, 'Completed')
                 emit_log(socketio, self.job_id, f'Successfully created {clips_created} clips!')

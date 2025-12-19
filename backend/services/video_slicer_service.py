@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict
 
-from .processing_config import CLIP_PADDING_BEFORE, CLIP_PADDING_AFTER
+from .processing_config import CLIP_PADDING_BEFORE, CLIP_PADDING_AFTER, TEMP_PATH
 
 
 class VideoSlicerService:
@@ -23,6 +23,62 @@ class VideoSlicerService:
         milliseconds = int((seconds % 1) * 1000)
         
         return f"{hours:02d}:{minutes:02d}:{secs:02d}.{milliseconds:03d}"
+    
+    @staticmethod
+    def _generate_thumbnail(
+        video_path: str,
+        thumbnail_path: str,
+        time_offset: float = 1.0
+    ) -> bool:
+        """
+        Generate a thumbnail from a video using ffmpeg
+        
+        Args:
+            video_path: Path to the video file
+            thumbnail_path: Path to save the thumbnail
+            time_offset: Time offset in seconds from start (default: 1.0)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Use ffmpeg to extract a frame at the specified time offset
+            # Scale to 1280x720 (16:9 aspect ratio) for consistent thumbnails
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-ss', str(time_offset),
+                '-vframes', '1',
+                '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+                '-q:v', '2',  # High quality JPEG
+                '-y',
+                thumbnail_path
+            ]
+            
+            subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True
+            )
+            
+            # Verify thumbnail was created
+            if Path(thumbnail_path).exists():
+                return True
+            return False
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error generating thumbnail: {e}")
+            print(f"FFmpeg stderr: {e.stderr.decode('utf-8') if e.stderr else 'No stderr'}")
+            return False
+        except FileNotFoundError:
+            print("Error: ffmpeg not found. Please install ffmpeg:")
+            print("  macOS: brew install ffmpeg")
+            print("  Linux: sudo apt install ffmpeg")
+            return False
+        except Exception as e:
+            print(f"Unexpected error generating thumbnail: {e}")
+            return False
     
     @staticmethod
     def _slice_video(
@@ -181,6 +237,28 @@ class VideoSlicerService:
                 'segment': segment
             }
             
+            # Generate thumbnail if clip was created successfully
+            thumbnail_path = None
+            if success:
+                thumbnail_name = f"{base_filename}_clip{idx:02d}_thumb.jpg"
+                thumbnail_path_obj = output_dir / thumbnail_name
+                
+                # Generate thumbnail at 1 second into the clip (or middle if clip is shorter)
+                clip_duration = segment.get('duration_seconds', 0)
+                thumbnail_time = min(1.0, clip_duration / 2) if clip_duration > 0 else 0.5
+                
+                if VideoSlicerService._generate_thumbnail(
+                    video_path=str(clip_path),
+                    thumbnail_path=str(thumbnail_path_obj),
+                    time_offset=thumbnail_time
+                ):
+                    thumbnail_path = str(thumbnail_path_obj)
+                    print(f"  ✓ Thumbnail generated")
+                else:
+                    print(f"  ⚠ Thumbnail generation failed (clip still created)")
+            
+            result['thumbnail_path'] = thumbnail_path
+            
             # Save metadata
             if success and save_metadata:
                 metadata_path = output_dir / f"{base_filename}_clip{idx:02d}_metadata.json"
@@ -205,6 +283,8 @@ class VideoSlicerService:
                     json.dump(metadata, f, indent=2)
                 
                 result['metadata_path'] = str(metadata_path)
+                # Store source_video in segment for later verification
+                segment['source_video'] = str(input_path)
                 print(f"  ✓ Saved clip and metadata")
             elif success:
                 print(f"  ✓ Saved clip")

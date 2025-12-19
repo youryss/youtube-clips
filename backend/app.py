@@ -91,6 +91,15 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     
+    # Preload Whisper model for faster transcription
+    try:
+        from services.transcription_service import TranscriptionService
+        TranscriptionService.initialize_model()
+        print("Whisper model preloaded successfully")
+    except Exception as e:
+        print(f"Warning: Failed to preload Whisper model: {e}")
+        print("Model will be loaded on first transcription request")
+    
     # Start the job manager
     from services.job_manager import get_job_manager
     from models import Job

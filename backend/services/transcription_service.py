@@ -26,6 +26,105 @@ from .ytdlp_utils import create_ytdlp_instance
 class TranscriptionService:
     """Service for audio transcription"""
     
+    # Class-level model instance for preloading
+    _model: Optional[WhisperModel] = None
+    _model_config: Optional[Dict[str, str]] = None
+    
+    @classmethod
+    def initialize_model(
+        cls,
+        model_name: Optional[str] = None,
+        device: Optional[str] = None,
+        compute_type: Optional[str] = None
+    ) -> None:
+        """
+        Preload the Whisper model at application startup
+        
+        Args:
+            model_name: Whisper model size (defaults to WHISPER_MODEL)
+            device: Device to use (defaults to WHISPER_DEVICE)
+            compute_type: Compute type (defaults to WHISPER_COMPUTE_TYPE)
+        """
+        if cls._model is not None:
+            print("[Transcribe] Model already initialized, skipping...", flush=True)
+            return
+        
+        model_name = model_name or WHISPER_MODEL
+        device = device or WHISPER_DEVICE
+        compute_type = compute_type or WHISPER_COMPUTE_TYPE
+        
+        print(f"[Transcribe] Preloading Whisper model: {model_name} (device={device}, compute_type={compute_type})", flush=True)
+        start_time = time.time()
+        
+        try:
+            cls._model = WhisperModel(model_name, device=device, compute_type=compute_type)
+            cls._model_config = {
+                'model_name': model_name,
+                'device': device,
+                'compute_type': compute_type
+            }
+            load_time = time.time() - start_time
+            print(f"[Transcribe] Model preloaded successfully in {load_time:.2f} seconds", flush=True)
+        except ImportError as e:
+            error_msg = f"Failed to import faster_whisper: {e}"
+            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+            raise Exception(error_msg)
+        except Exception as e:
+            error_msg = f"Failed to preload Whisper model: {e}"
+            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+            import traceback
+            traceback.print_exc()
+            raise Exception(error_msg)
+    
+    @classmethod
+    def get_model(
+        cls,
+        model_name: Optional[str] = None,
+        device: Optional[str] = None,
+        compute_type: Optional[str] = None
+    ) -> WhisperModel:
+        """
+        Get the Whisper model instance, loading it if not already loaded
+        
+        Args:
+            model_name: Whisper model size (defaults to WHISPER_MODEL)
+            device: Device to use (defaults to WHISPER_DEVICE)
+            compute_type: Compute type (defaults to WHISPER_COMPUTE_TYPE)
+        
+        Returns:
+            WhisperModel instance
+        """
+        model_name = model_name or WHISPER_MODEL
+        device = device or WHISPER_DEVICE
+        compute_type = compute_type or WHISPER_COMPUTE_TYPE
+        
+        # If model is already loaded and config matches, reuse it
+        if cls._model is not None and cls._model_config:
+            if (cls._model_config['model_name'] == model_name and
+                cls._model_config['device'] == device and
+                cls._model_config['compute_type'] == compute_type):
+                return cls._model
+        
+        # Otherwise, load a new model (fallback for different configs)
+        print(f"[Transcribe] Loading Whisper model: {model_name} (device={device}, compute_type={compute_type})", flush=True)
+        start_time = time.time()
+        
+        try:
+            model = WhisperModel(model_name, device=device, compute_type=compute_type)
+            load_time = time.time() - start_time
+            print(f"[Transcribe] Model loaded successfully in {load_time:.2f} seconds", flush=True)
+            return model
+        except ImportError as e:
+            error_msg = f"Failed to import faster_whisper: {e}"
+            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+            raise Exception(error_msg)
+        except Exception as e:
+            error_msg = f"Failed to load Whisper model: {e}"
+            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
+            import traceback
+            traceback.print_exc()
+            raise Exception(error_msg)
+    
     @staticmethod
     def sanitize_filename(filename: str) -> str:
         """Remove invalid characters from filename"""
@@ -197,29 +296,14 @@ class TranscriptionService:
             if audio_duration:
                 print(f"Audio duration: {TranscriptionService.format_timestamp(audio_duration)}", flush=True)
         
-        print(f"[Transcribe] Loading Whisper model: {model_name} (device={device}, compute_type={compute_type})", flush=True)
-        start_time = time.time()
-        
         if progress_callback:
             try:
                 progress_callback(0)
             except:
                 pass
         
-        try:
-            model = WhisperModel(model_name, device=device, compute_type=compute_type)
-            load_time = time.time() - start_time
-            print(f"[Transcribe] Model loaded successfully in {load_time:.2f} seconds", flush=True)
-        except ImportError as e:
-            error_msg = f"Failed to import faster_whisper: {e}"
-            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
-            raise Exception(error_msg)
-        except Exception as e:
-            error_msg = f"Failed to load Whisper model: {e}"
-            print(f"[Transcribe] ERROR: {error_msg}", flush=True)
-            import traceback
-            traceback.print_exc()
-            raise Exception(error_msg)
+        # Get model instance (will use preloaded model if available)
+        model = TranscriptionService.get_model(model_name, device, compute_type)
         
         print(f"[Transcribe] Starting transcription of: {audio_path}", flush=True)
         

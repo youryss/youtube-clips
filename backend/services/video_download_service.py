@@ -211,31 +211,102 @@ class VideoDownloadService:
                             'cached': True
                         }
                     
+                    # Track files that exist BEFORE download to find newly created files
+                    import time
+                    download_start_time = time.time()
+                    existing_files = {f.name: f.stat().st_mtime for f in output_dir.glob('*.mp4')}
+                    # Also track files without extension (yt-dlp might download without extension first)
+                    existing_files_no_ext = {f.name: f.stat().st_mtime for f in output_dir.glob('*') if f.is_file() and not f.suffix}
+                    
                     # Download video
                     ydl.download([url])
                     
-                    # Find the downloaded file
-                    if expected_path.exists():
-                        video_path = expected_path
-                    else:
-                        video_files = sorted(
-                            output_dir.glob('*.mp4'),
-                            key=lambda p: p.stat().st_mtime,
-                            reverse=True
-                        )
-                        if video_files:
-                            video_path = video_files[0]
+                    # CRITICAL: If download succeeded, we MUST find the file and return it
+                    # Don't let file detection failures cause us to try other strategies
+                    # Wrap file detection in try-except to handle it separately
+                    try:
+                        # Find the downloaded file
+                        if expected_path.exists():
+                            video_path = expected_path
                         else:
-                            raise Exception("Downloaded file not found")
-                    
-                    return {
-                        'path': str(video_path),
-                        'title': info.get('title', 'Unknown'),
-                        'duration': info.get('duration', 0),
-                        'resolution': f"{info.get('height', 0)}p",
-                        'format': 'mp4',
-                        'cached': False
-                    }
+                            # CRITICAL FIX: Only consider files created DURING this download
+                            # Find files that are NEW (created after download started) or modified during download
+                            current_time = time.time()
+                        # Only include files that:
+                        # 1. Didn't exist before download (truly new), OR
+                        # 2. Were modified AFTER download started (modified during download)
+                        new_files = []
+                        all_files = list(output_dir.glob('*.mp4'))
+                        # Also check for files without extension (yt-dlp might download without .mp4 first)
+                        all_files_no_ext = [f for f in output_dir.glob('*') if f.is_file() and not f.suffix and f.name not in existing_files_no_ext]
+                        for f in all_files:
+                            file_mtime = f.stat().st_mtime
+                            is_new = f.name not in existing_files
+                            was_modified_during_download = f.name in existing_files and file_mtime >= download_start_time
+                            if is_new or was_modified_during_download:
+                                new_files.append(f)
+                        
+                        # Check if any file without extension matches expected name
+                        expected_name_no_ext = expected_path.stem
+                        matching_no_ext = [f for f in all_files_no_ext if f.name == expected_name_no_ext or f.name.startswith(expected_name_no_ext)]
+                        if matching_no_ext:
+                            # File exists without extension - wait a moment for yt-dlp to add extension, or use it as-is
+                            most_recent_no_ext = max(matching_no_ext, key=lambda p: p.stat().st_mtime)
+                            # Check if .mp4 version exists now
+                            potential_mp4 = output_dir / f"{most_recent_no_ext.name}.mp4"
+                            if potential_mp4.exists():
+                                new_files.append(potential_mp4)
+                            elif most_recent_no_ext.stat().st_mtime >= download_start_time:
+                                # File was created during download, use it even without extension
+                                new_files.append(most_recent_no_ext)
+                        
+                        # If no new files, check if download actually created a file with different name
+                        # yt-dlp might have saved it with a different name, so check most recent files
+                        if not new_files:
+                            # Check if there are any files at all, and use the most recent one as last resort
+                            if all_files:
+                                most_recent = max(all_files, key=lambda p: p.stat().st_mtime)
+                                file_age = current_time - most_recent.stat().st_mtime
+                                # If file was created/modified very recently (within last 30 seconds), use it
+                                if file_age < 30:
+                                    print(f"WARNING: No new files detected, but using recently modified file: {most_recent.name} (age: {file_age:.1f}s)")
+                                    video_path = most_recent
+                                else:
+                                    raise Exception(f"Downloaded file not found. Expected: {expected_path.name}. No new files created during download. Most recent file is {file_age:.1f} seconds old.")
+                            else:
+                                raise Exception(f"Downloaded file not found. Expected: {expected_path.name}. No files in output directory.")
+                        else:
+                            # First, try to match by filename pattern
+                            expected_name_base = expected_path.stem
+                            matching_files = [
+                                f for f in new_files
+                                if f.stem == expected_name_base or f.stem.startswith(expected_name_base) or expected_name_base.startswith(f.stem.split('_')[0] if '_' in f.stem else f.stem)
+                            ]
+                            
+                            if matching_files:
+                                # Use the most recent matching file
+                                video_path = max(matching_files, key=lambda p: p.stat().st_mtime)
+                            else:
+                                # If no pattern match, use the most recently created NEW file
+                                # This ensures we don't pick up old files from previous jobs
+                                video_path = max(new_files, key=lambda p: p.stat().st_mtime)
+                                print(f"WARNING: Expected file pattern not found, using newly created file: {video_path.name}")
+                                print(f"  Expected: {expected_path.name}")
+                                print(f"  Selected: {video_path.name}")
+                        
+                        return {
+                            'path': str(video_path),
+                            'title': info.get('title', 'Unknown'),
+                            'duration': info.get('duration', 0),
+                            'resolution': f"{info.get('height', 0)}p",
+                            'format': 'mp4',
+                            'cached': False
+                        }
+                    except Exception as file_detection_error:
+                        # Download succeeded but file detection failed - don't continue to other strategies
+                        # Re-raise with a specific message that won't trigger "continue to next strategy"
+                        error_msg = str(file_detection_error)
+                        raise Exception(f"Download succeeded but file not found: {error_msg}") from file_detection_error
                 finally:
                     try:
                         ydl.close()
@@ -245,6 +316,12 @@ class VideoDownloadService:
             except Exception as e:
                 error_msg = str(e)
                 last_error = e
+                
+                # Continue to next strategy ONLY for format-related errors
+                # Do NOT continue if download succeeded but file detection failed
+                if 'Download succeeded but file not found' in error_msg:
+                    # This means download worked but we can't find the file - don't try other strategies
+                    raise
                 
                 # Continue to next strategy for format-related errors
                 # Also handle "Only images" error which means YouTube is blocking
