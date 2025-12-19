@@ -17,8 +17,9 @@ At a high level, the system looks like this:
 │  - Dashboard / Jobs / Clips   │
 │  - Settings, YouTube connect  │
 │  - Real‑time job progress     │
+│    (polling via REST API)     │
 └──────────────┬────────────────┘
-               │ HTTP (REST) + WebSocket (Socket.IO)
+               │ HTTP (REST)
                ▼
 ┌───────────────────────────────┐
 │           Backend             │
@@ -27,7 +28,6 @@ At a high level, the system looks like this:
 │  - Auth / Users / Settings    │
 │  - Jobs / Clips APIs          │
 │  - YouTube OAuth + metadata   │
-│  - WebSocket events           │
 └──────────────┬────────────────┘
                │
                │ uses
@@ -57,7 +57,7 @@ At a high level, the system looks like this:
 
 **Tech stack**
 
-- **Framework**: `Flask` (REST API) + `Flask‑SocketIO` (real‑time WebSocket events).
+- **Framework**: `Flask` (REST API).
 - **Auth**: `flask-jwt-extended` (JWT based) + `flask-bcrypt` for password hashing.
 - **Database & migrations**: `Flask‑SQLAlchemy`, `psycopg2-binary` (PostgreSQL), `Flask‑Migrate`.
 - **Background / async**: Custom **Job Manager** built on Python threads + a queue.
@@ -70,15 +70,14 @@ At a high level, the system looks like this:
 
 - `backend/app.py` exposes a `create_app` factory which:
   - Configures Flask from `config.py` and the environment.
-  - Initializes database, JWT, CORS, Socket.IO, and migrations.
+  - Initializes database, JWT, CORS, and migrations.
   - Registers API blueprints: `auth`, `jobs`, `clips`, `settings`, `youtube`.
-  - Registers WebSocket handlers from `api.websocket`.
   - Exposes a health endpoint (`/health`) and a root API info endpoint (`/`).
 - When run directly, it:
   - Creates DB tables if they don't exist.
   - Starts the global **Job Manager**.
   - Reloads any **pending** jobs from the database back into the queue.
-  - Runs the app via `socketio.run(..., async_mode="eventlet")`.
+  - Runs the app via Flask's development server or a production WSGI server.
 
 ### Domain model (conceptual)
 
@@ -138,10 +137,6 @@ The API layer is implemented as Flask blueprints in `backend/api`:
   - Handles OAuth flows using `client_secrets.json` and `youtube_token.json`.
   - Manages linking a YouTube account to a user and possibly publishing clips.
 
-- **WebSocket (`websocket.py`)**
-  - Registers `Socket.IO` event handlers.
-  - Pushes real‑time updates on job progress and status changes to connected clients.
-
 ---
 
 ## Services Layer
@@ -173,7 +168,7 @@ The pipeline is orchestrated by `processor.py` (conceptually, the **VideoProcess
 
    - Uses `yt-dlp` to download the YouTube video to temporary storage.
    - Normalizes filenames and stores the path on the Job.
-   - Updates Job status to `downloading` and progress via DB + WebSocket.
+   - Updates Job status to `downloading` and progress via DB.
 
 2. **Transcription service (`transcription_service.py`)**
 
@@ -186,8 +181,7 @@ The pipeline is orchestrated by `processor.py` (conceptually, the **VideoProcess
         - Create an entry with `start`, `end`, `text`, and **formatted timestamps**.
         - Compute an estimated progress % based on `segment.end / audio_duration`.
         - Optionally invoke a callback, which the `VideoProcessor` uses to:
-          - Update the Job’s `progress` field in DB.
-          - Emit WebSocket events for UI updates.
+          - Update the Job's `progress` field in DB.
      6. Cache the transcript JSON on disk (to avoid re‑transcribing).
    - Stores the transcript path on the Job and sets status to `transcribing` → `analyzing`.
 
@@ -227,7 +221,7 @@ Throughout the pipeline, `VideoProcessor`:
   - Transcription: 20–60%
   - Analysis: 60–80%
   - Slicing: 80–100%
-- Emits WebSocket events so the UI remains real‑time.
+- Updates the database so the UI can poll for the latest status.
 
 ---
 
@@ -239,9 +233,9 @@ Throughout the pipeline, `VideoProcessor`:
 - **Language**: TypeScript.
 - **Styling**: Tailwind CSS (v4) + utility helpers (`clsx`, `tailwind-merge`).
 - **UI primitives**: Radix UI + custom components (buttons, inputs, tables, etc.).
-- **State management**: `zustand` for global app state (e.g., auth, jobs).
+- **State management**: React Context API for auth state, React hooks (`useState`, `useCallback`, `useEffect`) for component-level state.
 - **HTTP client**: `axios` for API calls to the Flask backend.
-- **Real‑time**: `socket.io-client` for receiving job progress updates.
+- **Real‑time updates**: Polling via REST API (configurable interval, default 3 seconds).
 - **Feedback / toasts**: `react-hot-toast` and `sonner`.
 - **Testing / Storybook**:
   - `vitest`, React Testing Library for tests.
@@ -254,7 +248,7 @@ Throughout the pipeline, `VideoProcessor`:
   - On success, store JWT and redirect to the dashboard.
 - `(dashboard)/layout.tsx`:
   - Auth‑protected shell containing header, sidebar, and global providers.
-  - Wraps nested routes with access to auth state and Socket.IO connection.
+  - Wraps nested routes with access to auth state.
 - `(dashboard)/dashboard`:
   - Overview of user activity and recent jobs.
 - `(dashboard)/jobs`:
@@ -279,13 +273,13 @@ Next.js page calls Jobs API (Axios → /api/jobs POST)
 Backend creates Job, enqueues it, returns Job JSON
         │
         ▼
-Zustand store updates jobs list + UI shows "pending"
+React state updates jobs list + UI shows "pending"
         │
         ▼
-Socket.IO client listens for job progress events
+Frontend polls Jobs API at regular intervals (default: 3s)
         │
         ▼
-UI updates status/progress bars in real‑time
+UI updates status/progress bars as polling detects changes
 ```
 
 ---
@@ -375,21 +369,19 @@ Create Clip records → slice video with ffmpeg
 
 ---
 
-## Real‑Time Updates (WebSockets)
+## Real‑Time Updates (Polling)
 
-Real‑time UX is provided via **Socket.IO**:
+Real‑time UX is provided via **polling**:
 
 - On the backend:
-  - `Flask‑SocketIO` is initialized in `app.py` with CORS configured for the frontend origin.
-  - The `VideoProcessor` / services call helper functions to:
-    - Emit events like `job_status_changed`, `job_progress`, `job_completed`, `job_failed`.
-    - Include job ID, new status, progress, and brief messages in payloads.
+  - The `VideoProcessor` / services update the Job's `status`, `progress`, and `current_step` fields in the database as work progresses.
+  - The Jobs API endpoint (`/api/jobs`) returns the current state of all jobs for the authenticated user.
 - On the frontend:
-  - `socket.io-client` connects when an authenticated user loads the dashboard.
-  - Listeners subscribe to job events and update the zustand store.
-  - UI components (e.g., Jobs table, progress bars, toasts) react to store changes.
+  - The dashboard uses a polling mechanism (default: 3-second interval) to periodically fetch the latest job statuses.
+  - The `useDashboard` hook manages this polling via `setInterval`, calling `api.listJobs()` at regular intervals.
+  - UI components (e.g., Jobs table, progress bars, toasts) react to state changes as new data is fetched.
 
-This gives the user immediate visual feedback while long‑running transcription and analysis tasks are executing.
+This approach provides near real‑time visual feedback while long‑running transcription and analysis tasks are executing, without requiring WebSocket infrastructure.
 
 ---
 
@@ -399,7 +391,7 @@ This gives the user immediate visual feedback while long‑running transcription
 
 - The repo includes a `Dockerfile` for the backend and one for the frontend, plus `docker-compose.yml` at the root.
 - Typical deployment:
-  - **Backend container**: runs Flask + Socket.IO with `eventlet`, connects to PostgreSQL.
+  - **Backend container**: runs Flask with a WSGI server (e.g., gunicorn), connects to PostgreSQL.
   - **Frontend container**: runs `next start` in production mode, serving the React app.
   - **Database**: PostgreSQL service (local or managed).
   - Shared volumes for:
@@ -410,7 +402,7 @@ This gives the user immediate visual feedback while long‑running transcription
 
 - Environment variables control:
   - DB connection string.
-  - JWT secret, CORS origins, Socket.IO allowed origins.
+  - JWT secret, CORS origins.
   - OpenAI API key and model name.
   - Whisper model/device/compute type.
   - Paths for temp storage and output.
@@ -426,6 +418,3 @@ This gives the user immediate visual feedback while long‑running transcription
   - `backend/services/transcription_service.py` and `analyzer_service.py` for the core AI logic.
   - `frontend/src/app/(dashboard)` for the main UI.
 - **Architectural changes**: when you change flows (e.g., new criteria, new queue mechanism, or a different transcription engine), update this file so the doc stays in sync with reality.
-
-
-
