@@ -1,20 +1,27 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Download, Upload, Trash2, Video, Play, CheckCircle } from "lucide-react"
-import type { Clip } from "@/types"
-import { api } from "@/services/api"
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Download,
+  Upload,
+  Trash2,
+  Video,
+  Play,
+  CheckCircle,
+} from "lucide-react";
+import type { Clip } from "@/types";
+import { useThumbnail } from "@/hooks/use-thumbnail";
 
 type ClipCardGridProps = {
-  clip: Clip
-  uploadingId: number | null
-  onSelect: () => void
-  onDownload: () => void
-  onUpload: () => void
-  onDelete: () => void
-  formatDuration: (seconds?: number) => string
-  formatFileSize: (bytes?: number) => string
-}
+  clip: Clip;
+  uploadingId: number | null;
+  onSelect: () => void;
+  onDownload: () => void;
+  onUpload: () => void;
+  onDelete: () => void;
+  formatDuration: (seconds?: number) => string;
+  formatFileSize: (bytes?: number) => string;
+};
 
 export function ClipCardGrid({
   clip,
@@ -26,18 +33,30 @@ export function ClipCardGrid({
   formatDuration,
   formatFileSize,
 }: ClipCardGridProps) {
+  const { thumbnailUrl, isLoading } = useThumbnail(
+    clip.id,
+    clip.thumbnail_path
+  );
+
   return (
     <Card className="overflow-hidden">
-      <div className="group relative aspect-video cursor-pointer bg-muted" onClick={onSelect}>
-        {clip.thumbnail_path ? (
+      <div
+        className="group relative aspect-video cursor-pointer bg-muted"
+        onClick={onSelect}
+      >
+        {thumbnailUrl ? (
           <img
-            src={api.getThumbnailUrl(clip.id)}
+            src={thumbnailUrl}
             alt={clip.title || "Clip thumbnail"}
             className="size-full object-cover"
           />
         ) : (
           <div className="flex size-full items-center justify-center">
-            <Video className="size-12 text-muted-foreground" />
+            {isLoading ? (
+              <div className="size-12 animate-pulse rounded bg-muted-foreground/20" />
+            ) : (
+              <Video className="size-12 text-muted-foreground" />
+            )}
           </div>
         )}
 
@@ -49,7 +68,9 @@ export function ClipCardGrid({
 
         {clip.viral_score && (
           <div className="absolute right-2 top-2">
-            <Badge className="bg-viral text-viral-foreground">{Math.round(clip.viral_score)}%</Badge>
+            <Badge className="bg-viral text-viral-foreground">
+              {Math.round(clip.viral_score)}/10
+            </Badge>
           </div>
         )}
         {clip.is_uploaded && (
@@ -70,11 +91,15 @@ export function ClipCardGrid({
         <div className="mb-4 space-y-1 text-sm text-muted-foreground">
           <div className="flex justify-between">
             <span>Duration:</span>
-            <span className="font-medium text-foreground">{formatDuration(clip.duration)}</span>
+            <span className="font-medium text-foreground">
+              {formatDuration(clip.duration)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span>Size:</span>
-            <span className="font-medium text-foreground">{formatFileSize(clip.file_size)}</span>
+            <span className="font-medium text-foreground">
+              {formatFileSize(clip.file_size)}
+            </span>
           </div>
         </div>
 
@@ -110,7 +135,5 @@ export function ClipCardGrid({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
-
-
