@@ -1,0 +1,20 @@
+meta {
+  name: Get Clip
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/clips/:clip_id
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  clip_id: 1
+}
+

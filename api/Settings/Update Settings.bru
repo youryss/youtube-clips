@@ -1,0 +1,25 @@
+meta {
+  name: Update Settings
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/settings
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "min_clip_duration": 15,
+    "max_clip_duration": 60,
+    "clip_count": 5
+  }
+}
+

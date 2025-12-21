@@ -1,0 +1,20 @@
+meta {
+  name: Download Clip
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/clips/:clip_id/download
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  clip_id: 1
+}
+

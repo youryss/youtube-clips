@@ -1,0 +1,20 @@
+meta {
+  name: Get Auth URL
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/youtube/auth/url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  ~redirect_uri: http://localhost:3001/youtube/callback
+}
+

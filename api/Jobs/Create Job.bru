@@ -1,0 +1,23 @@
+meta {
+  name: Create Job
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/jobs
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  }
+}
+

@@ -1,0 +1,25 @@
+meta {
+  name: Auth Callback
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/youtube/auth/callback
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "code": "authorization_code_from_youtube",
+    "state": "state_from_auth_url",
+    "redirect_uri": "http://localhost:3001/youtube/callback"
+  }
+}
+

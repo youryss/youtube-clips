@@ -1,0 +1,16 @@
+meta {
+  name: Get All Criteria
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/settings/criteria
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+

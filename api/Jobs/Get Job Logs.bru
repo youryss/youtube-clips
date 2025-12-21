@@ -1,0 +1,20 @@
+meta {
+  name: Get Job Logs
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/jobs/:job_id/logs
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  job_id: 1
+}
+

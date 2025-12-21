@@ -1,0 +1,20 @@
+meta {
+  name: Get Job Transcript
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/jobs/:job_id/transcript
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  job_id: 1
+}
+

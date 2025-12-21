@@ -1,0 +1,20 @@
+meta {
+  name: Get Criterion
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/settings/criteria/:criterion_name
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  criterion_name: viral_hooks
+}
+

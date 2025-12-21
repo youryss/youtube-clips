@@ -54,6 +54,9 @@ dist/
 *.db
 *.sqlite
 
+# Bruno
+api/*
+
 
 
 

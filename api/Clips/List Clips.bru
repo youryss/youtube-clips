@@ -1,0 +1,21 @@
+meta {
+  name: List Clips
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/clips?page=1&per_page=20
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+params:query {
+  page: 1
+  per_page: 20
+}
+

@@ -1,0 +1,32 @@
+meta {
+  name: Upload Clip
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/youtube/clips/:clip_id/upload
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+params:path {
+  clip_id: 1
+}
+
+body:json {
+  {
+    "title": "My Viral Clip",
+    "description": "Check out this amazing clip!",
+    "tags": ["viral", "shorts", "trending"],
+    "category": "22",
+    "privacy": "private",
+    "make_shorts": true
+  }
+}
+
