@@ -12,7 +12,7 @@ import {
 import type { Clip } from "@/types";
 import { useThumbnail } from "@/hooks/use-thumbnail";
 
-type ClipCardGridProps = {
+interface ClipCardGridProps {
   clip: Clip;
   uploadingId: number | null;
   onSelect: () => void;
@@ -21,7 +21,7 @@ type ClipCardGridProps = {
   onDelete: () => void;
   formatDuration: (seconds?: number) => string;
   formatFileSize: (bytes?: number) => string;
-};
+}
 
 export function ClipCardGrid({
   clip,

@@ -5,12 +5,12 @@ import { api } from "@/services/api";
 import type { Job } from "@/types";
 import { PROCESSING_STATUSES, type StatusFilter } from "./jobs-state";
 
-export type UseJobActionsResult = {
+export interface UseJobActionsResult {
   handleDeleteJob: (jobId: number) => Promise<void>;
   handleRetryJob: (jobId: number) => Promise<void>;
   handleCancelJob: (jobId: number) => Promise<void>;
   getStatusCount: (status: StatusFilter | "all" | "processing") => number;
-};
+}
 
 export function useJobActions(
   jobs: Job[],

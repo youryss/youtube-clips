@@ -1,7 +1,7 @@
 import { Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-type SettingsSaveBarProps = {
+interface SettingsSaveBarProps {
   onSave: () => void
   isSaving: boolean
 }

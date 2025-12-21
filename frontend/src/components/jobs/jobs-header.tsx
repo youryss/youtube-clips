@@ -4,11 +4,11 @@ import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-type JobsHeaderProps = {
+interface JobsHeaderProps {
   title?: string;
   description?: string;
   onRefresh?: () => void;
-};
+}
 
 export function JobsHeader({
   title = "All Jobs",

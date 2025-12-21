@@ -1,7 +1,7 @@
 import { RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-type ClipsHeaderProps = {
+interface ClipsHeaderProps {
   onRefresh: () => void
 }
 

@@ -3,7 +3,7 @@ import * as React from "react"
 import type { Job } from "@/types"
 import { JobsViewMode, PROCESSING_STATUSES, type StatusFilter } from "./jobs-state"
 
-export type UseJobFiltersResult = {
+export interface UseJobFiltersResult {
   searchQuery: string
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>
   statusFilter: StatusFilter

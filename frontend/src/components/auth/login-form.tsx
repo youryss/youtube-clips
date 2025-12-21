@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type LoginFormProps = {
+interface LoginFormProps {
   email: string;
   password: string;
   isLoading: boolean;
@@ -12,7 +12,7 @@ type LoginFormProps = {
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
-};
+}
 
 export function LoginForm({
   email,

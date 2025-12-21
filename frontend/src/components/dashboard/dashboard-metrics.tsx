@@ -1,7 +1,7 @@
 import { Film, Play, CheckCircle, ListTodo } from "lucide-react"
 import { MetricCard } from "@/components/ui/metric-card"
 
-type DashboardMetricsProps = {
+interface DashboardMetricsProps {
   totalClips: number
   activeJobs: number
   completedJobs: number

@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import type { Job } from "@/types"
 import { DashboardJobCard } from "@/components/dashboard/dashboard-job-card"
 
-type DashboardRecentJobsProps = {
+interface DashboardRecentJobsProps {
   jobs: Job[]
   isLoadingJobs: boolean
   expandedJobId: number | null

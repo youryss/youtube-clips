@@ -5,7 +5,7 @@ import { Download, Upload, Trash2, Video, CheckCircle } from "lucide-react";
 import type { Clip } from "@/types";
 import { useThumbnail } from "@/hooks/use-thumbnail";
 
-type ClipCardListProps = {
+interface ClipCardListProps {
   clip: Clip;
   uploadingId: number | null;
   onSelect: () => void;
@@ -14,7 +14,7 @@ type ClipCardListProps = {
   onDelete: () => void;
   formatDuration: (seconds?: number) => string;
   formatFileSize: (bytes?: number) => string;
-};
+}
 
 export function ClipCardList({
   clip,

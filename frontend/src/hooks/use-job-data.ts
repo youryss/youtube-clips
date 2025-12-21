@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import { api } from "@/services/api"
 import type { Job } from "@/types"
 
-export type UseJobDataResult = {
+export interface UseJobDataResult {
   jobs: Job[]
   isLoading: boolean
   loadJobs: (showLoading?: boolean) => Promise<void>

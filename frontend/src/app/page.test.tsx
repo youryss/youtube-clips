@@ -12,5 +12,3 @@ describe("Home page", () => {
     expect(redirectMock).toHaveBeenCalledWith("/dashboard");
   });
 });
-
-

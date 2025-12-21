@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Grid, List, Search } from "lucide-react"
 
+// Union types must remain as type aliases since interfaces cannot represent unions
 type ViewMode = "grid" | "list"
 
-type ClipsFiltersProps = {
+interface ClipsFiltersProps {
   searchQuery: string
   onSearchChange: (value: string) => void
   viewMode: ViewMode

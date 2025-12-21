@@ -13,7 +13,7 @@ import { StatusIndicator } from "@/components/ui/status-indicator"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import type { Job } from "@/types"
 
-type DashboardJobCardProps = {
+interface DashboardJobCardProps {
   job: Job
   expanded: boolean
   logs?: string

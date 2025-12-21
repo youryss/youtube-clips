@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { api } from "@/services/api"
 import type { Clip } from "@/types"
 
+// Union types must remain as type aliases since interfaces cannot represent unions
 type ViewMode = "grid" | "list"
 
 export function useClips(pollInterval?: number) {

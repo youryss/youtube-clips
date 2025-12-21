@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
-type DashboardCreateJobCardProps = {
+interface DashboardCreateJobCardProps {
   videoUrl: string
   onVideoUrlChange: (value: string) => void
   onSubmit: (e: React.FormEvent) => void

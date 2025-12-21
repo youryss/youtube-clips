@@ -3,7 +3,7 @@ import { toast } from "sonner"
 
 import { api } from "@/services/api"
 
-export type UseJobLogsResult = {
+export interface UseJobLogsResult {
   expandedJobId: number | null
   jobLogs: Record<number, string>
   handleViewLogs: (jobId: number) => Promise<void>

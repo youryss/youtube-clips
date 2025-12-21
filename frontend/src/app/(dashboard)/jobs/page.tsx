@@ -16,11 +16,11 @@ import { useJobLogs } from "@/hooks/use-job-logs";
 import { useJobActions } from "@/hooks/use-job-actions";
 import type { StatusFilter } from "@/hooks/jobs-state";
 
-type StatusTab = {
+interface StatusTab {
   value: StatusFilter;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-};
+}
 
 const statusTabs: StatusTab[] = [
   { value: "all", label: "All", icon: List },

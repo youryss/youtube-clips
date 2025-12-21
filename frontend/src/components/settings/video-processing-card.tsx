@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import type { Settings } from "@/types"
 
-type VideoProcessingCardProps = {
+interface VideoProcessingCardProps {
   settings: Settings | null
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
 }

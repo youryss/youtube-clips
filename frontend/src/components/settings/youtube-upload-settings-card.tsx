@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Label } from "@/components/ui/label"
 import type { Settings } from "@/types"
 
-type YouTubeUploadSettingsCardProps = {
+interface YouTubeUploadSettingsCardProps {
   settings: Settings | null
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
 }

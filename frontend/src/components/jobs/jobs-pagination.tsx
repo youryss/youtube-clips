@@ -5,14 +5,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-type JobsPaginationProps = {
+interface JobsPaginationProps {
   currentPage: number;
   totalPages: number;
   startIndex: number;
   endIndex: number;
   totalItems: number;
   onPageChange: (page: number) => void;
-};
+}
 
 export function JobsPagination({
   currentPage,

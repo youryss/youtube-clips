@@ -47,6 +47,7 @@ const statusDotColors: Record<string, string> = {
   cancelled: "bg-neutral-500",
 };
 
+// Union types must remain as type aliases since interfaces cannot represent unions
 type StatusType =
   | "pending"
   | "downloading"

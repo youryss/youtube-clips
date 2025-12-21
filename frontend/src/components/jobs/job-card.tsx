@@ -16,7 +16,7 @@ import { StatusIndicator } from "@/components/ui/status-indicator";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { Job } from "@/types";
 
-type JobCardProps = {
+interface JobCardProps {
   job: Job;
   isExpanded: boolean;
   logs?: string;
@@ -24,7 +24,7 @@ type JobCardProps = {
   onRetry: () => void;
   onCancel: () => void;
   onDelete: () => void;
-};
+}
 
 export function JobCard({
   job,

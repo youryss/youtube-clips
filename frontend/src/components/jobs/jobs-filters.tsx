@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { JobsViewMode, StatusFilter } from "@/hooks/jobs-state";
 
-type StatusTab = {
+interface StatusTab {
   value: StatusFilter;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-};
+}
 
-type JobsFiltersProps = {
+interface JobsFiltersProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   viewMode: JobsViewMode;
@@ -23,7 +23,7 @@ type JobsFiltersProps = {
   statusFilter: StatusFilter;
   onStatusFilterChange: (value: StatusFilter) => void;
   getStatusCount: (status: StatusFilter) => number;
-};
+}
 
 export function JobsFilters({
   searchQuery,

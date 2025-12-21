@@ -3,7 +3,7 @@ import * as React from "react"
 import type { Job } from "@/types"
 import { ITEMS_PER_PAGE } from "./jobs-state"
 
-export type UseJobPaginationResult = {
+export interface UseJobPaginationResult {
   currentPage: number
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>
   totalPages: number
