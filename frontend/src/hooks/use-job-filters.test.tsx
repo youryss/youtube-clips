@@ -52,5 +52,3 @@ describe("useJobFilters", () => {
     expect(result.current.filteredJobs.map((j) => j.id)).toEqual([3]);
   });
 });
-
-

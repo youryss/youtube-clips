@@ -44,9 +44,19 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="video-processing">
         <TabsList>
-          <TabsTrigger value="video-processing">Video Processing</TabsTrigger>
-          <TabsTrigger value="ai-settings">AI Settings</TabsTrigger>
-          <TabsTrigger value="youtube-upload-settings">
+          <TabsTrigger
+            value="video-processing"
+            data-testid="video-processing-tab"
+          >
+            Video Processing
+          </TabsTrigger>
+          <TabsTrigger value="ai-settings" data-testid="ai-settings-tab">
+            AI Settings
+          </TabsTrigger>
+          <TabsTrigger
+            value="youtube-upload-settings"
+            data-testid="youtube-upload-settings-tab"
+          >
             YouTube Upload Settings
           </TabsTrigger>
         </TabsList>

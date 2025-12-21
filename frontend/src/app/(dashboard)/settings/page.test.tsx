@@ -69,11 +69,10 @@ describe("SettingsPage", () => {
 
     render(<SettingsPage />);
 
-    expect(screen.getByText("Settings Header")).toBeInTheDocument();
-    expect(screen.getByText("YouTube Accounts")).toBeInTheDocument();
-    expect(screen.getByText("Video Processing")).toBeInTheDocument();
-    expect(screen.getByText("AI Settings")).toBeInTheDocument();
-    expect(screen.getByText("YouTube Upload Settings")).toBeInTheDocument();
-    expect(screen.getByText("Save Bar")).toBeInTheDocument();
+    expect(screen.getByTestId("video-processing-tab")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-settings-tab")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("youtube-upload-settings-tab")
+    ).toBeInTheDocument();
   });
 });

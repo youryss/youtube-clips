@@ -3,13 +3,16 @@ export const PROCESSING_STATUSES = [
   "transcribing",
   "analyzing",
   "slicing",
-] as const
+] as const;
 
 // Union types must remain as type aliases since interfaces cannot represent unions
-export type JobsViewMode = "grid" | "list"
+export type JobsViewMode = "grid" | "list";
 
-export type StatusFilter = "all" | "completed" | "processing" | "failed" | "pending"
+export type StatusFilter =
+  | "all"
+  | "completed"
+  | "processing"
+  | "failed"
+  | "pending";
 
-export const ITEMS_PER_PAGE = 10
-
-
+export const ITEMS_PER_PAGE = 10;
