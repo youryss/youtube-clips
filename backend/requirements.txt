@@ -36,4 +36,7 @@ tqdm>=4.65.0
 # YouTube Downloader (with JavaScript runtime support)
 yt-dlp[default]>=2025.11.12
 
+# API Documentation
+flasgger>=0.9.7
+
 

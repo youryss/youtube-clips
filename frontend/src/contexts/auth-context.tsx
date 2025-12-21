@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import type { User, LoginCredentials, RegisterData } from "@/types"
 import { api } from "@/services/api"
+import { setCookie, getCookie, deleteCookie } from "@/lib/cookies"
 
 interface AuthContextType {
   user: User | null
@@ -25,10 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
-    // Check for token in localStorage on mount
-    const storedToken = localStorage.getItem("access_token")
+    // Check for token in localStorage or cookies on mount
+    const storedToken = localStorage.getItem("access_token") || getCookie("access_token")
     if (storedToken) {
       setToken(storedToken)
+      // Sync to both storage methods
+      if (!localStorage.getItem("access_token")) {
+        localStorage.setItem("access_token", storedToken)
+      }
+      if (!getCookie("access_token")) {
+        setCookie("access_token", storedToken)
+      }
       loadUser()
     } else {
       setIsLoading(false)
@@ -43,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to load user:", error)
       setToken(null)
       localStorage.removeItem("access_token")
+      deleteCookie("access_token")
     } finally {
       setIsLoading(false)
     }
@@ -53,7 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.login(credentials)
       setToken(response.access_token)
       setUser(response.user)
+      // Store token in both localStorage (for client components) and cookies (for server components)
       localStorage.setItem("access_token", response.access_token)
+      setCookie("access_token", response.access_token)
       toast.success("Login successful!")
       router.push("/dashboard")
     } catch (error: unknown) {
@@ -72,7 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.register(data)
       setToken(response.access_token)
       setUser(response.user)
+      // Store token in both localStorage (for client components) and cookies (for server components)
       localStorage.setItem("access_token", response.access_token)
+      setCookie("access_token", response.access_token)
       toast.success("Account created successfully!")
       router.push("/dashboard")
     } catch (error: unknown) {
@@ -90,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     setUser(null)
     localStorage.removeItem("access_token")
+    deleteCookie("access_token")
     toast.success("Logged out successfully")
     router.push("/login")
   }

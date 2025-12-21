@@ -76,6 +76,12 @@ To stop the services:
 docker-compose down
 ```
 
+Running app locally with auto reload
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build postgres backend frontend-dev
+```
+
 ### 4. Storybook Setup
 
 Storybook is used for developing and testing UI components in isolation.

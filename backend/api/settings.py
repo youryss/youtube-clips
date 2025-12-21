@@ -15,7 +15,24 @@ settings_bp = Blueprint('settings', __name__)
 @settings_bp.route('', methods=['GET'])
 @jwt_required()
 def get_settings():
-    """Get user settings"""
+    """
+    Get user settings
+    ---
+    tags:
+      - Settings
+    summary: Get current user settings
+    description: Returns the settings for the authenticated user, creating default settings if none exist
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Settings retrieved successfully
+        schema:
+          type: object
+          properties:
+            settings:
+              type: object
+    """
     user_id = get_jwt_identity()
     
     settings = UserSettings.query.filter_by(user_id=user_id).first()
@@ -32,7 +49,40 @@ def get_settings():
 @settings_bp.route('', methods=['PUT'])
 @jwt_required()
 def update_settings():
-    """Update user settings"""
+    """
+    Update user settings
+    ---
+    tags:
+      - Settings
+    summary: Update user settings
+    description: Updates the settings for the authenticated user
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            min_clip_duration:
+              type: number
+            max_clip_duration:
+              type: number
+            clip_count:
+              type: integer
+            # Add other settings properties as needed
+    responses:
+      200:
+        description: Settings updated successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            settings:
+              type: object
+    """
     user_id = get_jwt_identity()
     data = request.get_json()
     
@@ -58,7 +108,35 @@ def update_settings():
 @settings_bp.route('/criteria', methods=['GET'])
 @jwt_required()
 def get_criteria():
-    """Get all criteria content"""
+    """
+    Get all criteria content
+    ---
+    tags:
+      - Settings
+    summary: Get all clip detection criteria
+    description: Returns all criteria files (viral_hooks, emotional_peaks, value_bombs, humor_moments)
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Criteria retrieved successfully
+        schema:
+          type: object
+          properties:
+            criteria:
+              type: object
+              properties:
+                viral_hooks:
+                  type: string
+                emotional_peaks:
+                  type: string
+                value_bombs:
+                  type: string
+                humor_moments:
+                  type: string
+      404:
+        description: Criteria directory not found
+    """
     # Get criteria directory path (relative to project root)
     project_root = Path(__file__).parent.parent.parent
     criteria_dir = project_root / 'criteria'
@@ -87,7 +165,37 @@ def get_criteria():
 @settings_bp.route('/criteria/<criterion_name>', methods=['GET'])
 @jwt_required()
 def get_criterion(criterion_name: str):
-    """Get a specific criterion's content"""
+    """
+    Get a specific criterion's content
+    ---
+    tags:
+      - Settings
+    summary: Get a specific criterion file content
+    description: Returns the content of a specific criterion file
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: criterion_name
+        type: string
+        required: true
+        enum: [viral_hooks, emotional_peaks, value_bombs, humor_moments]
+        description: Name of the criterion to retrieve
+    responses:
+      200:
+        description: Criterion retrieved successfully
+        schema:
+          type: object
+          properties:
+            criterion:
+              type: string
+            content:
+              type: string
+      400:
+        description: Invalid criterion name
+      404:
+        description: Criterion file not found
+    """
     # Get criteria directory path (relative to project root)
     project_root = Path(__file__).parent.parent.parent
     criteria_dir = project_root / 'criteria'

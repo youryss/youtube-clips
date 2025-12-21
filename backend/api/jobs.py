@@ -20,7 +20,45 @@ jobs_bp = Blueprint('jobs', __name__)
 @jobs_bp.route('', methods=['GET'])
 @jwt_required()
 def list_jobs():
-    """List all jobs for current user"""
+    """
+    List all jobs for current user
+    ---
+    tags:
+      - Jobs
+    summary: List all video processing jobs
+    description: Returns a paginated list of all jobs for the authenticated user
+    security:
+      - Bearer: []
+    parameters:
+      - in: query
+        name: page
+        type: integer
+        default: 1
+        description: Page number for pagination
+      - in: query
+        name: per_page
+        type: integer
+        default: 10
+        description: Number of items per page
+    responses:
+      200:
+        description: List of jobs retrieved successfully
+        schema:
+          type: object
+          properties:
+            jobs:
+              type: array
+              items:
+                type: object
+            total:
+              type: integer
+            page:
+              type: integer
+            per_page:
+              type: integer
+            pages:
+              type: integer
+    """
     user_id = int(get_jwt_identity())
     
     page = request.args.get('page', 1, type=int)
@@ -42,7 +80,42 @@ def list_jobs():
 @jobs_bp.route('', methods=['POST'])
 @jwt_required()
 def create_job():
-    """Create a new job"""
+    """
+    Create a new job
+    ---
+    tags:
+      - Jobs
+    summary: Create a new video processing job
+    description: Creates a new job to process a YouTube video and generate clips
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - video_url
+          properties:
+            video_url:
+              type: string
+              format: uri
+              example: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+              description: YouTube video URL to process
+    responses:
+      201:
+        description: Job created successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            job:
+              type: object
+      400:
+        description: Invalid input - video_url is required
+    """
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
@@ -79,7 +152,32 @@ def create_job():
 @jobs_bp.route('/<int:job_id>', methods=['GET'])
 @jwt_required()
 def get_job(job_id):
-    """Get job details"""
+    """
+    Get job details
+    ---
+    tags:
+      - Jobs
+    summary: Get details of a specific job
+    description: Returns detailed information about a specific job
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: job_id
+        type: integer
+        required: true
+        description: The ID of the job to retrieve
+    responses:
+      200:
+        description: Job details retrieved successfully
+        schema:
+          type: object
+          properties:
+            job:
+              type: object
+      404:
+        description: Job not found
+    """
     user_id = int(get_jwt_identity())
     
     job = Job.query.filter_by(id=job_id, user_id=user_id).first()

@@ -17,7 +17,52 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """Register a new user"""
+    """
+    Register a new user
+    ---
+    tags:
+      - Authentication
+    summary: Register a new user account
+    description: Creates a new user account with email, username, and password
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - username
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+            username:
+              type: string
+              example: johndoe
+            password:
+              type: string
+              format: password
+              example: securepassword123
+    responses:
+      201:
+        description: User created successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            user:
+              type: object
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+      400:
+        description: Invalid input or user already exists
+    """
     data = request.get_json()
     
     # Validate input
@@ -61,7 +106,52 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """Login user"""
+    """
+    Login user
+    ---
+    tags:
+      - Authentication
+    summary: Authenticate user and get access tokens
+    description: Authenticates a user with email and password, returns JWT tokens
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+            password:
+              type: string
+              format: password
+              example: securepassword123
+    responses:
+      200:
+        description: Login successful
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            user:
+              type: object
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+      400:
+        description: Missing email or password
+      401:
+        description: Invalid credentials
+      403:
+        description: Account is disabled
+    """
     import time
     import sys
     print(f"[LOGIN] Request received at {time.time()}", flush=True)
@@ -137,7 +227,26 @@ def refresh():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
-    """Get current user info"""
+    """
+    Get current user info
+    ---
+    tags:
+      - Authentication
+    summary: Get current authenticated user information
+    description: Returns the user information for the currently authenticated user
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: User information retrieved successfully
+        schema:
+          type: object
+          properties:
+            user:
+              type: object
+      404:
+        description: User not found
+    """
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     

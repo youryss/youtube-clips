@@ -17,7 +17,26 @@ youtube_bp = Blueprint('youtube', __name__)
 @youtube_bp.route('/accounts', methods=['GET'])
 @jwt_required()
 def list_accounts():
-    """List user's YouTube accounts"""
+    """
+    List user's YouTube accounts
+    ---
+    tags:
+      - YouTube
+    summary: List connected YouTube accounts
+    description: Returns all YouTube accounts connected by the authenticated user
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Accounts retrieved successfully
+        schema:
+          type: object
+          properties:
+            accounts:
+              type: array
+              items:
+                type: object
+    """
     user_id = int(get_jwt_identity())
     
     accounts = YouTubeAccount.query.filter_by(user_id=user_id).all()
@@ -30,7 +49,34 @@ def list_accounts():
 @youtube_bp.route('/auth/url', methods=['GET'])
 @jwt_required()
 def get_auth_url():
-    """Get YouTube OAuth authorization URL"""
+    """
+    Get YouTube OAuth authorization URL
+    ---
+    tags:
+      - YouTube
+    summary: Get YouTube OAuth authorization URL
+    description: Returns the OAuth authorization URL for connecting a YouTube account
+    security:
+      - Bearer: []
+    parameters:
+      - in: query
+        name: redirect_uri
+        type: string
+        required: false
+        description: Redirect URI for OAuth callback
+    responses:
+      200:
+        description: Authorization URL generated successfully
+        schema:
+          type: object
+          properties:
+            authorization_url:
+              type: string
+            state:
+              type: string
+      500:
+        description: Failed to create authorization URL
+    """
     try:
         # Get redirect URI from request or use default
         redirect_uri = request.args.get('redirect_uri')
@@ -63,7 +109,48 @@ def get_auth_url():
 @youtube_bp.route('/auth/callback', methods=['POST'])
 @jwt_required()
 def auth_callback():
-    """Handle YouTube OAuth callback"""
+    """
+    Handle YouTube OAuth callback
+    ---
+    tags:
+      - YouTube
+    summary: Handle YouTube OAuth callback
+    description: Processes the OAuth callback from YouTube and connects the account
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+              description: Authorization code from YouTube
+            state:
+              type: string
+              description: State parameter for OAuth
+            redirect_uri:
+              type: string
+              description: Redirect URI used in authorization
+    responses:
+      200:
+        description: Account connected successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            account:
+              type: object
+      400:
+        description: Invalid request or failed to process callback
+      500:
+        description: Server error processing callback
+    """
     user_id = int(get_jwt_identity())
     data = request.get_json()
     
@@ -132,7 +219,32 @@ def auth_callback():
 @youtube_bp.route('/accounts/<int:account_id>', methods=['DELETE'])
 @jwt_required()
 def delete_account(account_id):
-    """Delete YouTube account"""
+    """
+    Delete YouTube account
+    ---
+    tags:
+      - YouTube
+    summary: Delete a connected YouTube account
+    description: Removes a YouTube account connection for the authenticated user
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: account_id
+        type: integer
+        required: true
+        description: ID of the account to delete
+    responses:
+      200:
+        description: Account deleted successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+      404:
+        description: Account not found
+    """
     user_id = int(get_jwt_identity())
     
     account = YouTubeAccount.query.filter_by(id=account_id, user_id=user_id).first()
@@ -149,7 +261,77 @@ def delete_account(account_id):
 @youtube_bp.route('/clips/<int:clip_id>/upload', methods=['POST'])
 @jwt_required()
 def upload_clip(clip_id):
-    """Upload a clip to YouTube"""
+    """
+    Upload a clip to YouTube
+    ---
+    tags:
+      - YouTube
+    summary: Upload a clip to YouTube
+    description: Uploads a generated clip to YouTube with optional metadata
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: clip_id
+        type: integer
+        required: true
+        description: ID of the clip to upload
+      - in: body
+        name: body
+        required: false
+        schema:
+          type: object
+          properties:
+            account_id:
+              type: integer
+              description: YouTube account ID to use (optional, uses default if not provided)
+            title:
+              type: string
+              description: Video title
+            description:
+              type: string
+              description: Video description
+            tags:
+              type: array
+              items:
+                type: string
+              description: Video tags
+            category:
+              type: string
+              default: "22"
+              description: YouTube category ID
+            privacy:
+              type: string
+              enum: [private, unlisted, public]
+              default: private
+              description: Video privacy setting
+            make_shorts:
+              type: boolean
+              default: true
+              description: Whether to upload as YouTube Shorts
+    responses:
+      200:
+        description: Clip uploaded successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            video_id:
+              type: string
+            video_url:
+              type: string
+            shorts_url:
+              type: string
+            thumbnail_uploaded:
+              type: boolean
+      400:
+        description: No active YouTube account found or invalid request
+      404:
+        description: Clip not found or clip file not found
+      500:
+        description: Upload failed
+    """
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     

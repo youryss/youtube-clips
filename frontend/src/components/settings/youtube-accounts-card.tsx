@@ -11,12 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { YouTubeAccount } from "@/types";
 
-type YouTubeAccountsCardProps = {
+interface YouTubeAccountsCardProps {
   accounts: YouTubeAccount[];
   onDeleteAccount: (id: number) => void;
   onConnect: () => void;
   isConnecting: boolean;
-};
+}
 
 export function YouTubeAccountsCard({
   accounts,

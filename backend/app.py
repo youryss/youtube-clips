@@ -9,6 +9,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from flasgger import Swagger
 
 from config import config
 from models import db, bcrypt
@@ -36,6 +37,78 @@ def create_app(config_name=None):
     bcrypt.init_app(app)
     jwt.init_app(app)
     migrate.init_app(app, db)
+    
+    # Initialize Swagger
+    # Get host and port from config or environment
+    swagger_host = os.getenv('SWAGGER_HOST', 'localhost:5001')
+    
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec",
+                "route": "/apispec.json",
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/swagger"
+    }
+    
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "YouTube Viral Clipper API",
+            "description": "API documentation for YouTube Viral Clipper - A service for creating viral video clips from YouTube videos",
+            "version": "1.0.0",
+            "contact": {
+                "name": "API Support"
+            }
+        },
+        "host": swagger_host,
+        "basePath": "/api",
+        "schemes": ["http", "https"],
+        "securityDefinitions": {
+            "Bearer": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header",
+                "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+            }
+        },
+        "security": [
+            {
+                "Bearer": []
+            }
+        ],
+        "tags": [
+            {
+                "name": "Authentication",
+                "description": "User authentication and authorization endpoints"
+            },
+            {
+                "name": "Jobs",
+                "description": "Video processing job management endpoints"
+            },
+            {
+                "name": "Clips",
+                "description": "Generated video clip management endpoints"
+            },
+            {
+                "name": "Settings",
+                "description": "User settings and configuration endpoints"
+            },
+            {
+                "name": "YouTube",
+                "description": "YouTube OAuth and upload endpoints"
+            }
+        ]
+    }
+    
+    # Initialize Swagger with app (flasgger doesn't use init_app pattern)
+    Swagger(app, config=swagger_config, template=swagger_template)
     
     # Initialize CORS
     CORS(app, resources={

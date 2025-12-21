@@ -14,7 +14,45 @@ clips_bp = Blueprint('clips', __name__)
 @clips_bp.route('', methods=['GET'])
 @jwt_required()
 def list_clips():
-    """List all clips for current user"""
+    """
+    List all clips for current user
+    ---
+    tags:
+      - Clips
+    summary: List all generated video clips
+    description: Returns a paginated list of all clips for the authenticated user
+    security:
+      - Bearer: []
+    parameters:
+      - in: query
+        name: page
+        type: integer
+        default: 1
+        description: Page number for pagination
+      - in: query
+        name: per_page
+        type: integer
+        default: 20
+        description: Number of items per page
+    responses:
+      200:
+        description: List of clips retrieved successfully
+        schema:
+          type: object
+          properties:
+            clips:
+              type: array
+              items:
+                type: object
+            total:
+              type: integer
+            page:
+              type: integer
+            per_page:
+              type: integer
+            pages:
+              type: integer
+    """
     user_id = int(get_jwt_identity())
     
     page = request.args.get('page', 1, type=int)
@@ -37,7 +75,32 @@ def list_clips():
 @clips_bp.route('/<int:clip_id>', methods=['GET'])
 @jwt_required()
 def get_clip(clip_id):
-    """Get clip details"""
+    """
+    Get clip details
+    ---
+    tags:
+      - Clips
+    summary: Get details of a specific clip
+    description: Returns detailed information about a specific clip
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: clip_id
+        type: integer
+        required: true
+        description: The ID of the clip to retrieve
+    responses:
+      200:
+        description: Clip details retrieved successfully
+        schema:
+          type: object
+          properties:
+            clip:
+              type: object
+      404:
+        description: Clip not found
+    """
     user_id = int(get_jwt_identity())
     
     clip = Clip.query.join(Job).filter(
