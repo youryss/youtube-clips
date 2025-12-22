@@ -35,7 +35,7 @@ export function ClipCardList({
     <Card>
       <CardContent className="flex gap-4 p-4">
         <div
-          className="group relative h-20 w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-lg bg-muted"
+          className="group relative h-20 w-32 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-muted"
           onClick={onSelect}
         >
           {thumbnailUrl ? (
@@ -63,7 +63,7 @@ export function ClipCardList({
             <div className="flex flex-shrink-0 items-center gap-2">
               {clip.viral_score && (
                 <Badge className="bg-viral text-viral-foreground">
-                  {Math.round(clip.viral_score)}%
+                  {Math.round(clip.viral_score)}/10
                 </Badge>
               )}
               {clip.is_uploaded && (

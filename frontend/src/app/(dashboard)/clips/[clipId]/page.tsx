@@ -7,7 +7,6 @@ async function getClip(clipId: string): Promise<Clip> {
     const { clip } = await serverApi.getClip(clipId);
     return clip;
   } catch (error) {
-    // Re-throw to be handled by the page component
     throw error;
   }
 }
